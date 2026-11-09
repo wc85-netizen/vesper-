@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vesper">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Vesper</title>
+<style>
+  :root{
+    --bg:#0d0a12; --panel:#17111f; --line:#2c2238; --ink:#e9e1f2; --dim:#9d8fb0;
+    --lit:#dccbf3; --fill:#2b1e3b; --rose:#c25b7a; --gold:#d9b26a; --moss:#7fa37a;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;font-size:17px;overscroll-behavior:none}
+  .wrap{max-width:460px;margin:0 auto;padding:calc(10px + var(--safe-t)) 14px calc(20px + var(--safe-b))}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:10px}
+  h1{font-weight:700;font-size:30px;line-height:1;margin:0;letter-spacing:1px;font-variant:small-caps;cursor:pointer}
+  h1 small{font-size:13px;color:var(--dim);display:block;letter-spacing:1.5px;margin-top:5px;font-variant:normal;text-transform:uppercase}
+  .clock{text-align:right;color:var(--dim);font-size:14px;line-height:1.3}
+  .clock b{color:var(--gold)}
+
+  .stage{position:relative;height:300px;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#08060c;touch-action:none}
+  #sky{position:absolute;inset:0;transition:background 4s}
+  #glow{position:absolute;left:-30%;right:-30%;bottom:-45%;height:85%;pointer-events:none;opacity:0;transition:opacity 4s;
+    background:radial-gradient(ellipse at 50% 100%,rgba(255,165,105,.6),rgba(220,110,90,.25) 35%,transparent 65%)}
+  #moon{position:absolute;top:16px;right:22px;width:52px;height:52px;transition:opacity 3s;filter:drop-shadow(0 0 14px rgba(233,217,168,.35))}
+  .wx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #flashLayer{position:absolute;inset:0;background:#e8e6ff;opacity:0;pointer-events:none}
+  .stars{position:absolute;inset:0;transition:opacity 4s}
+  .mute{background:none;border:none;padding:0 0 0 8px;font-size:18px;display:inline;cursor:pointer;vertical-align:middle}
+  .star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:tw 3s infinite ease-in-out}
+  @keyframes tw{50%{opacity:.2}}
+  .curtain{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.5s;
+    background:repeating-linear-gradient(90deg,rgba(60,10,25,.55) 0 18px,rgba(40,5,15,.7) 18px 36px)}
+  .day .curtain{opacity:.32}
+  .ground{position:absolute;left:0;right:0;bottom:0;height:50px;background:linear-gradient(transparent,#06040a)}
+  .grave{position:absolute;bottom:12px;width:30px;height:40px;background:#221a2c;border-radius:14px 14px 3px 3px;border:1px solid #33283f}
+  .grave::after{content:"✝";position:absolute;inset:0;display:grid;place-items:center;color:#4a3d58;font-size:16px}
+  .branch{position:absolute;top:30px;left:50%;width:240px;height:9px;margin-left:-120px;border-radius:6px;
+    background:linear-gradient(#3a2a22,#22170f);opacity:0;transition:opacity .6s}
+  .sleeping .branch{opacity:1}
+
+  #batWrap{position:absolute;left:50%;top:50%;width:240px;height:180px;margin:-100px 0 0 -120px;transition:transform .8s cubic-bezier(.5,1.6,.4,1), opacity .8s}
+  #bat{width:100%;height:100%;animation:bob 2.6s ease-in-out infinite;transform-origin:50% 0;cursor:pointer}
+  #bat svg,#hunter svg{width:100%;height:100%;overflow:visible;transition:transform .8s cubic-bezier(.5,1.4,.4,1)}
+  .wing{transform-box:fill-box;animation:flapL .5s ease-in-out infinite alternate}
+  .wingL{transform-origin:100% 30%}
+  .wingR{transform-origin:0% 30%;animation-name:flapR}
+  @keyframes flapL{from{transform:rotate(8deg) scaleY(.92)}to{transform:rotate(-14deg) scaleY(1.04)}}
+  @keyframes flapR{from{transform:rotate(-8deg) scaleY(.92)}to{transform:rotate(14deg) scaleY(1.04)}}
+  .slow #bat .wing{animation-duration:1.3s}
+  .sleeping #bat svg{transform:rotate(180deg) scale(.9)}
+  .sleeping #bat .wing{animation:none;transform:scaleX(.45)}
+  @keyframes bob{50%{transform:translateY(-8px)}}
+  .sleeping #batWrap{transform:translateY(-64px)}
+  .sleeping #bat{animation:sway 4s ease-in-out infinite}
+  @keyframes sway{50%{transform:rotate(3deg)}}
+  .away #batWrap{opacity:0;transform:translate(160px,-220px) scale(.3)}
+  .loop #batWrap{animation:loop 1.2s ease-in-out}
+  @keyframes loop{0%{transform:none}25%{transform:translate(70px,-50px) rotate(90deg)}50%{transform:translate(0,-100px) rotate(180deg)}75%{transform:translate(-70px,-50px) rotate(270deg)}100%{transform:rotate(360deg)}}
+  .dizzy #batWrap{animation:dizzy .25s linear 6}
+  @keyframes dizzy{25%{transform:translateX(-8px) rotate(-6deg)}75%{transform:translateX(8px) rotate(6deg)}}
+  .zzz{position:absolute;left:62%;top:44%;font-weight:700;color:var(--dim);font-size:22px;opacity:0}
+  .sleeping .zzz{animation:z 3s infinite}
+  @keyframes z{0%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(26px,-50px)}}
+  .bubble{position:absolute;left:12px;right:12px;bottom:12px;text-align:center;font-size:16px;font-weight:600;
+    background:rgba(23,17,31,.9);border:1px solid var(--line);border-radius:12px;padding:8px 10px;transition:opacity .4s;pointer-events:none}
+  .bubble:empty{opacity:0}
+  .fx{position:absolute;inset:0;pointer-events:none}
+  .float{position:absolute;font-size:22px;animation:up 1.4s ease-out forwards}
+  @keyframes up{to{transform:translateY(-70px);opacity:0}}
+
+  .bars{display:grid;gap:8px;margin:14px 2px 4px}
+  .bar{display:grid;grid-template-columns:64px 1fr 34px;align-items:center;gap:10px;font-size:15px}
+  .bar span{color:var(--dim);font-weight:700}
+  .track{height:10px;border-radius:6px;background:#1f1729;border:1px solid var(--line);overflow:hidden}
+  .fill{height:100%;border-radius:6px;transition:width .6s,background .6s}
+  .bar em{font-style:normal;text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;font-size:14px}
+
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+  button{font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:10px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+  button i{font-style:normal;font-size:22px;line-height:1.1}
+  button:active{transform:scale(.96);background:#20172b}
+  button:disabled{opacity:.35}
+  .foot{margin-top:14px;color:var(--dim);font-size:15px;line-height:1.4;min-height:42px}
+  .banner{margin-top:10px;font-size:14px;color:var(--dim);border:1px dashed var(--line);border-radius:12px;padding:8px 10px;display:none}
+  .banner.on{display:block}
+
+  /* sheets */
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:20}
+  .sheet.on{display:flex}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + var(--safe-b));width:100%;max-width:460px;max-height:88vh;overflow:auto;-webkit-user-select:text;user-select:text}
+  .card h3{font-size:22px;margin:0 0 4px;font-variant:small-caps;letter-spacing:1px}
+  .card p{color:var(--dim);margin:6px 0 12px;font-size:15px;line-height:1.4}
+  .card input{width:100%;font:inherit;font-size:19px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:#0f0b15;color:var(--ink);-webkit-user-select:text;user-select:text}
+  .row{display:flex;gap:8px;margin-top:12px}
+  .row button{flex:1;flex-direction:row;justify-content:center;padding:11px 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chips button{flex-direction:row;font-size:14px;padding:6px 11px;border-radius:20px}
+  .sensor{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .sensor b{display:block;font-size:16px}
+  .sensor small{color:var(--dim);font-size:13px;line-height:1.3;display:block}
+  .sensor button{flex-direction:row;padding:7px 11px;font-size:13px;border-radius:10px}
+  .ok{color:var(--moss)} .no{color:var(--dim)}
+  .score{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin:8px 0}
+  .score img{width:110px;height:110px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+  .big{font-size:44px;font-weight:700;line-height:1;color:var(--gold)}
+  .crit{display:grid;grid-template-columns:96px 1fr 30px;gap:8px;align-items:center;font-size:14px;margin:5px 0;color:var(--dim)}
+  .crit .track{height:8px}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .gallery figure{margin:0;position:relative}
+  .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+  .gallery figcaption{position:absolute;right:5px;bottom:5px;background:rgba(13,10,18,.85);border-radius:8px;padding:1px 6px;font-size:13px;color:var(--gold);font-weight:700}
+  .log{font-size:14px;color:var(--dim);max-height:160px;overflow:auto;margin-top:6px}
+  .log div{padding:3px 0;border-bottom:1px dashed #241b2e}
+
+  /* game */
+  .game{position:absolute;inset:0;display:none;background:rgba(8,6,12,.3)}
+  .game.on{display:block}
+  .gameinfo{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:20px;font-weight:700;color:var(--gold);pointer-events:none}
+  .moth{position:absolute;width:38px;height:32px}
+  .moth svg{width:100%;height:100%}
+  .moth .mw{transform-origin:20px 17px;animation:mf .18s infinite alternate}
+  @keyframes mf{to{transform:scaleX(.55)}}
+  #hunter{position:absolute;width:90px;height:72px;pointer-events:none}
+  #hunter .wing{animation-duration:.25s}
+  .listening{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:none;gap:3px;align-items:flex-end;height:26px}
+  .listening.on{display:flex}
+  .listening span{width:5px;background:var(--lit);border-radius:2px;transition:height .08s}
+
+  /* ---------- living behaviours ---------- */
+  .stretch .wingL{animation:spreadL 1.8s ease-in-out}
+  .stretch .wingR{animation:spreadR 1.8s ease-in-out}
+  @keyframes spreadL{30%,70%{transform:rotate(-34deg) scaleY(1.18)}}
+  @keyframes spreadR{30%,70%{transform:rotate(34deg) scaleY(1.18)}}
+  .groom #batWrap{animation:groom 2.2s ease-in-out}
+  @keyframes groom{20%,60%{transform:rotate(-14deg) translateY(4px)}40%,80%{transform:rotate(-8deg) translateY(6px)}}
+  .peek #batWrap{animation:peek 3.2s ease-in-out}
+  @keyframes peek{20%,80%{transform:translateY(26px) scale(1.28)}}
+  .peek #bat{animation:none}
+  .hide #batWrap{animation:hide 4.2s ease-in-out}
+  @keyframes hide{20%,70%{transform:translate(-112px,92px) scale(.45)}85%{transform:translate(-80px,60px) scale(.6)}}
+  .hop #batWrap{animation:hop .9s ease-in-out}
+  @keyframes hop{25%{transform:translateY(-34px)}50%{transform:none}75%{transform:translateY(-16px)}}
+  .nod #batWrap{animation:nod 3s ease-in-out}
+  @keyframes nod{30%{transform:translateY(10px) rotate(4deg)}50%{transform:translateY(2px)}75%{transform:translateY(12px) rotate(6deg)}}
+  .chase #batWrap{animation:chase 3.4s ease-in-out}
+  @keyframes chase{20%{transform:translate(-70px,-40px) rotate(-12deg)}45%{transform:translate(60px,-70px) rotate(14deg)}70%{transform:translate(90px,10px) rotate(8deg)}}
+  .wobble #batWrap{animation:wobble 1.4s ease-in-out}
+  @keyframes wobble{25%{transform:rotate(-10deg)}75%{transform:rotate(10deg)}}
+  .firefly{position:absolute;width:7px;height:7px;border-radius:50%;background:#f4f29a;box-shadow:0 0 10px 4px rgba(244,242,154,.55);
+    left:18%;top:38%;animation:ffly 3.4s ease-in-out forwards;pointer-events:none}
+  @keyframes ffly{20%{left:26%;top:22%}45%{left:78%;top:18%}70%{left:86%;top:52%}100%{left:105%;top:30%;opacity:0}}
+  .glint{position:absolute;bottom:22px;font-size:18px;color:var(--gold);animation:glint 2.4s ease-in-out forwards;pointer-events:none}
+  @keyframes glint{0%,100%{opacity:0;transform:scale(.4)}30%,60%{opacity:1;transform:scale(1.2)}}
+
+  /* ---------- header buttons & tabs ---------- */
+  .hbtn{background:none;border:none;padding:0 0 0 8px;font-size:18px;display:inline;cursor:pointer;vertical-align:middle}
+  .tabs{display:flex;gap:6px;margin:8px 0 10px}
+  .tabs button{flex:1;flex-direction:row;justify-content:center;font-size:14px;padding:7px 4px;border-radius:12px}
+  .tabs button.on{background:#2a1f38;border-color:#4a3a5e;color:var(--gold)}
+  .pane{display:none} .pane.on{display:block}
+  .actions .sub{font-size:12px;color:var(--dim);font-weight:400}
+
+  /* ---------- diary ---------- */
+  .entries{max-height:58vh;overflow:auto}
+  .entry{padding:10px 2px 12px;border-bottom:1px dashed #2c2238}
+  .entry h4{margin:0 0 4px;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:700}
+  .entry h4 small{color:var(--dim);font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px}
+  .entry div{font-style:italic;line-height:1.5;font-size:16px}
+  .about{line-height:1.55;font-size:16px}
+  .about b{color:var(--gold);font-weight:700}
+  .bond{height:10px;border-radius:6px;background:#1f1729;border:1px solid var(--line);overflow:hidden;margin:6px 0 12px}
+  .bond div{height:100%;background:linear-gradient(90deg,var(--rose),var(--gold));transition:width .6s}
+  .stat{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:7px 0;font-size:15px;color:var(--dim)}
+  .stat b{color:var(--ink)}
+
+  /* ---------- collection ---------- */
+  .items{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+  .item{position:relative;aspect-ratio:1;border-radius:12px;border:2px solid var(--line);background:#120d18;display:grid;place-items:center;font-size:28px;cursor:pointer}
+  .item.unknown{color:#3a2f48;font-size:22px;font-weight:700}
+  .item em{position:absolute;right:4px;bottom:2px;font-style:normal;font-size:12px;color:var(--dim)}
+  .item.new::after{content:"ny";position:absolute;left:4px;top:2px;font-size:11px;color:var(--gold);font-weight:700}
+  .r1{border-color:#3d3348} .r2{border-color:#4f7a6a} .r3{border-color:#5a6fb0} .r4{border-color:#a067b8} .r5{border-color:#d9b26a;box-shadow:0 0 10px rgba(217,178,106,.35)}
+  .iteminfo{min-height:62px;margin-top:10px;font-size:15px;color:var(--dim);line-height:1.4}
+  .iteminfo b{color:var(--ink)}
+
+  /* ---------- adventure ---------- */
+  .place{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:#120d18}
+  .place .ic{font-size:30px;text-align:center}
+  .place b{display:block;font-size:17px}
+  .place small{display:block;color:var(--dim);font-size:13px;line-height:1.35;margin-top:2px}
+  .place.locked{opacity:.45}
+  .place button{grid-column:1/-1;flex-direction:row;justify-content:center;padding:9px}
+  .finds{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .finds span{border:2px solid var(--line);border-radius:12px;padding:6px 10px;font-size:15px;background:#120d18}
+  .story{font-style:italic;line-height:1.55;font-size:16px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="name">Vesper<small id="stageLbl">fladdermusunge</small></h1>
+    <div class="clock"><b id="phase">Natt</b><button class="mute" id="mute" aria-label="Ljud">🔊</button><button class="hbtn" id="bSensors" aria-label="Sinnen och inställningar">⚙️</button><br><span id="sun">–</span><br><span id="wxLine"></span></div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div id="sky"></div>
+    <div id="glow"></div>
+    <div class="stars" id="stars"></div>
+    <svg id="moon" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#1c1828" opacity=".55"/><path id="moonLit" fill="#ecdfb2"/></svg>
+    <canvas class="wx" id="wxBack"></canvas>
+    <div class="curtain"></div>
+    <div class="branch"></div>
+    <div class="ground"></div>
+    <div class="grave" style="left:20px"></div>
+    <div class="grave" style="right:30px;height:32px;width:26px"></div>
+    <div id="batWrap"><div id="bat"><svg id="batSvg" viewBox="0 0 200 160" aria-label="Vesper">
+        <defs>
+          <radialGradient id="bodyG" cx="45%" cy="35%" r="70%">
+            <stop offset="0" stop-color="#6a4d88"/><stop offset="1" stop-color="#3a2950"/>
+          </radialGradient>
+        </defs>
+        <g class="wing wingL">
+          <path d="M72 78 C55 52 28 48 6 60 C14 66 16 74 14 84 C24 78 32 82 36 92 C44 84 54 86 60 96 C64 90 68 86 74 88 Z" fill="#2e2040" stroke="#1d1429" stroke-width="2"/>
+          <path d="M70 80 L14 84 M70 82 L36 92 M72 85 L60 96" stroke="#4a3560" stroke-width="1.5" fill="none"/>
+        </g>
+        <g class="wing wingR">
+          <path d="M128 78 C145 52 172 48 194 60 C186 66 184 74 186 84 C176 78 168 82 164 92 C156 84 146 86 140 96 C136 90 132 86 126 88 Z" fill="#2e2040" stroke="#1d1429" stroke-width="2"/>
+          <path d="M130 80 L186 84 M130 82 L164 92 M128 85 L140 96" stroke="#4a3560" stroke-width="1.5" fill="none"/>
+        </g>
+        <path d="M74 58 L68 22 L92 48 Z" fill="#3a2950" stroke="#1d1429" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M126 58 L132 22 L108 48 Z" fill="#3a2950" stroke="#1d1429" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M76 52 L72 32 L86 48 Z" fill="#c25b7a" opacity=".55"/>
+        <path d="M124 52 L128 32 L114 48 Z" fill="#c25b7a" opacity=".55"/>
+        <ellipse cx="100" cy="88" rx="38" ry="40" fill="url(#bodyG)" stroke="#1d1429" stroke-width="2"/>
+        <ellipse cx="100" cy="104" rx="20" ry="18" fill="#8a73a3" opacity=".45"/>
+        <path d="M90 127 l-3 7 M110 127 l3 7" stroke="#1d1429" stroke-width="3" stroke-linecap="round"/>
+        <g id="eyesOpen">
+          <circle cx="86" cy="82" r="11" fill="#fff"/><circle cx="114" cy="82" r="11" fill="#fff"/>
+          <circle id="pL" cx="87" cy="84" r="7" fill="#1a1022"/><circle id="pR" cx="113" cy="84" r="7" fill="#1a1022"/>
+          <circle id="gL" cx="90" cy="80" r="2.6" fill="#fff"/><circle id="gR" cx="116" cy="80" r="2.6" fill="#fff"/>
+        </g>
+        <g id="eyesSad" style="display:none">
+          <path d="M76 75 L95 80" stroke="#1d1429" stroke-width="3" stroke-linecap="round"/>
+          <path d="M124 75 L105 80" stroke="#1d1429" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <g id="eyesClosed" style="display:none">
+          <path d="M78 84 Q86 90 94 84" stroke="#1a1022" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M106 84 Q114 90 122 84" stroke="#1a1022" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </g>
+        <g id="eyesHappy" style="display:none">
+          <path d="M78 86 Q86 76 94 86" stroke="#1a1022" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+          <path d="M106 86 Q114 76 122 86" stroke="#1a1022" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        </g>
+        <ellipse id="cheekL" cx="74" cy="96" rx="6" ry="3.5" fill="#c25b7a" opacity=".6"/>
+        <ellipse id="cheekR" cx="126" cy="96" rx="6" ry="3.5" fill="#c25b7a" opacity=".6"/>
+        <path id="mouth" d="M92 98 Q100 106 108 98" stroke="#1a1022" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path id="fangs" d="M95 100 L97 106 L99 101 Z M105 100 L103 106 L101 101 Z" fill="#fff"/>
+      </svg></div></div>
+    <canvas class="wx" id="wxFront"></canvas>
+    <div id="flashLayer"></div>
+    <div class="zzz">z</div>
+    <div class="fx" id="fx"></div>
+    <div class="listening" id="listening"></div>
+    <div class="bubble" id="bubble"></div>
+    <div class="game" id="game">
+      <div id="hunter"></div>
+      <div class="gameinfo"><span id="gScore">0</span><span id="gTime">15</span></div>
+    </div>
+  </div>
+
+  <div class="bars">
+    <div class="bar"><span>Mat</span><div class="track"><div class="fill" id="fHunger"></div></div><em id="vHunger"></em></div>
+    <div class="bar"><span>Energi</span><div class="track"><div class="fill" id="fEnergy"></div></div><em id="vEnergy"></em></div>
+    <div class="bar"><span>Humör</span><div class="track"><div class="fill" id="fMood"></div></div><em id="vMood"></em></div>
+  </div>
+
+  <div class="actions">
+    <button id="bFeed"><i>🍇</i>Mata</button>
+    <button id="bPlay"><i>🦋</i>Jaga</button>
+    <button id="bWhistle"><i>🎵</i>Vissla</button>
+    <button id="bSleep"><i>🌙</i>Sov</button>
+    <button id="bTrip"><i>🌲</i>Utflykt</button>
+    <button id="bPhoto"><i>📷</i>Visa bild</button>
+    <button id="bCollect"><i>🎒</i>Samling</button>
+    <button id="bDiary"><i>📜</i>Dagbok</button>
+  </div>
+  <input type="file" id="photoIn" accept="image/*" hidden>
+
+  <div class="foot" id="tip"></div>
+  <div class="banner" id="install"></div>
+</div>
+
+<!-- name sheet -->
+<div class="sheet" id="sName"><div class="card">
+  <h3>Vad ska hon heta?</h3>
+  <input id="nameIn" maxlength="16" autocomplete="off">
+  <div class="chips" id="sugg"></div>
+  <div class="row"><button data-close>Avbryt</button><button id="nOk">Spara</button></div>
+</div></div>
+
+<!-- photo result -->
+<div class="sheet" id="sPhoto"><div class="card">
+  <h3 id="pTitle">Vesper tittar…</h3>
+  <div class="score"><img id="pImg" alt=""><div><div class="big" id="pScore">–</div><p id="pSay" style="margin:6px 0 0"></p></div></div>
+  <div id="pCrit"></div>
+  <div class="row"><button data-close>Stäng</button><button id="pAgain">📷 En till</button></div>
+</div></div>
+
+<!-- collection + gallery -->
+<div class="sheet" id="sCollect"><div class="card">
+  <h3>Samling</h3>
+  <div class="tabs" data-tabs="col"><button data-tab="colItems" class="on">🎒 Fynd</button><button data-tab="colPics">🖼️ Bilder</button></div>
+  <div class="pane on" id="colItems">
+    <p id="colCount"></p>
+    <div class="items" id="items"></div>
+    <div class="iteminfo" id="itemInfo">Tryck på ett fynd för att läsa om det.</div>
+  </div>
+  <div class="pane" id="colPics">
+    <p>De bästa bilderna du har visat henne.</p>
+    <div class="gallery" id="gal"></div>
+  </div>
+  <div class="row"><button data-close>Stäng</button></div>
+</div></div>
+
+<!-- adventure: choose a place -->
+<div class="sheet" id="sTrip"><div class="card">
+  <h3>Nattlig utflykt</h3>
+  <p id="tripIntro">Vart ska hon flyga i natt? En utflykt tar några minuter, och hon kommer hem med fynd och något att berätta.</p>
+  <div id="places"></div>
+  <div class="row"><button data-close>Inte nu</button></div>
+</div></div>
+
+<!-- adventure: homecoming -->
+<div class="sheet" id="sHome"><div class="card">
+  <h3 id="homeTitle">Hon är hemma!</h3>
+  <div class="story" id="homeStory"></div>
+  <div class="finds" id="homeFinds"></div>
+  <div class="row"><button data-close>Välkommen hem</button></div>
+</div></div>
+
+<!-- sensors -->
+<div class="sheet" id="sSensors"><div class="card">
+  <h3>Vespers sinnen</h3>
+  <p>Det här kan hon känna av i den här telefonen. Det som inte stöds hoppas över.</p>
+  <div id="sensorList"></div>
+  <div class="row"><button data-close>Klar</button></div>
+</div></div>
+
+<!-- diary -->
+<div class="sheet" id="sDiary"><div class="card">
+  <h3>Dagbok</h3>
+  <div class="tabs" data-tabs="diary"><button data-tab="dEntries" class="on">📜 Nätter</button><button data-tab="dAbout">🦇 Om henne</button><button data-tab="dLog">🕯️ Logg</button></div>
+  <div class="pane on" id="dEntries"><div class="entries" id="entries"></div></div>
+  <div class="pane" id="dAbout"><div class="about" id="about"></div></div>
+  <div class="pane" id="dLog"><div class="log" id="log"></div></div>
+  <div class="row"><button id="dReset">🪦 Börja om</button><button data-close>Stäng</button></div>
+</div></div>
+
+<script>
+(() => {
+  "use strict";
+  const KEY = "vesper-app-v1", GKEY = "vesper-gallery-v1";
+  const $ = id => document.getElementById(id);
+  const clamp = v => Math.max(0, Math.min(100, v));
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const NYKOPING = {lat: 58.753, lng: 17.009};
+
+  // ---------- state ----------
+  function fresh(){
+    const now = Date.now();
+    return {v:2, name:"Vesper", born:now, last:now, hunger:70, energy:80, mood:70, asleep:false,
+      away:false, awayUntil:0, neglect:0, petAt:0, loc:null, nfcBed:null, photos:[], log:[],
+      // v2: personality, bond, diary, adventures, collection
+      traits:{curiosity:50, courage:50, playfulness:50, sociability:50, independence:50},
+      bond:0, diary:[], once:{}, flags:{}, trip:null, pendingHome:null, items:{}, newItems:[],
+      trips:0, dry:0, lastEvents:[], tune:[], seenAt:now};
+  }
+  // Save-file versioning: old saves keep their Vesper, new fields get defaults.
+  function migrate(s){
+    const oldV = s.v || 1, f = fresh();
+    s = Object.assign(f, s);
+    s.traits = Object.assign(fresh().traits, s.traits || {});
+    for(const k of ["once","flags","items"]) if(!s[k] || typeof s[k] !== "object") s[k] = {};
+    for(const k of ["diary","newItems","lastEvents","tune","log","photos"]) if(!Array.isArray(s[k])) s[k] = [];
+    if(oldV < 2){
+      s.v = 2; s.seenAt = s.last || Date.now();
+      s.diary.push({t: Date.now(), n: nightNo(Date.now(), s.born), text: "Någonting har förändrats. Jag känner mig mer… jag. Jag tror att jag ska börja skriva ner saker nu."});
+    }
+    return s;
+  }
+  function load(){ try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s && s.born) return migrate(s); }catch(e){} return null; }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+  let S = load() || fresh();
+  let gallery = []; try{ gallery = JSON.parse(localStorage.getItem(GKEY)) || []; }catch(e){}
+  const saveGallery = () => { try{ localStorage.setItem(GKEY, JSON.stringify(gallery)); }catch(e){ gallery.pop(); } };
+
+  function log(msg){
+    const t = new Date().toLocaleString("sv-SE",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+    S.log.unshift(t+" – "+msg); S.log = S.log.slice(0,60);
+  }
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+
+  // ---------- nights & diary ----------
+  // A "night" runs from noon to noon, so a late-night session counts as the same night.
+  function nightNo(t, born){
+    const k = x => { const d = new Date(x - 12*3.6e6); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); };
+    return Math.max(1, Math.round((k(t) - k(born))/864e5) + 1);
+  }
+  const nightNow = () => nightNo(Date.now(), S.born);
+  // Write a first-person diary entry. `once` = a key that may only be written once per night (or ever, with "ever:")
+  function diary(text, once){
+    if(once){
+      const ever = once.startsWith("ever:"), key = ever ? once : once + ":" + nightNow();
+      if(S.once[key]) return false; S.once[key] = 1;
+      if(!ever){ const ks = Object.keys(S.once).filter(k => !k.startsWith("ever:")); if(ks.length > 80) for(const k of ks.slice(0, ks.length-80)) delete S.once[k]; }
+    }
+    S.diary.unshift({t: Date.now(), n: nightNow(), text}); S.diary = S.diary.slice(0, 150);
+    return true;
+  }
+
+  // ---------- personality & bond ----------
+  const TRAITS = {
+    curiosity:   ["nyfiken", "försiktig", "Nyfikenhet"],
+    courage:     ["modig", "blyg", "Mod"],
+    playfulness: ["lekfull", "lugn", "Lekfullhet"],
+    sociability: ["social", "tillbakadragen", "Socialitet"],
+    independence:["självständig", "tillgiven", "Självständighet"]
+  };
+  const MILESTONES = {
+    curiosity:   ["Jag vill veta vad som finns bakom varenda gren. Är det konstigt? Jag tror att jag har blivit nyfiken.", "Jag tittar hellre två gånger innan jag flyger någonstans. Det är klokt, tycker jag."],
+    courage:     ["I natt var jag inte rädd för någonting. Nästan ingenting. Jag är modigare nu.", "Jag gillar att gömma mig. Det är tryggt bakom gravstenen."],
+    playfulness: ["Allt är en lek! Löv, droppar, din vissling. Jag kan inte sitta still.", "Jag tycker om lugna nätter. Bara hänga och lyssna."],
+    sociability: ["Jag tycker om när du är här. Det är tystare när du inte är det.", "Jag behöver inte så mycket sällskap. Men lite. Ibland."],
+    independence:["Jag klarar mig själv, vet du. Men det är fint att du tittar till mig.", "Jag vill helst vara nära dig. Hela tiden. Är det okej?"]
+  };
+  // Nudge a hidden trait (0–100). Changes get smaller near the extremes, so no trait is ever "maxed out".
+  function nudge(trait, amt){
+    const t = S.traits[trait]; if(t == null) return;
+    const room = amt > 0 ? (100 - t)/50 : t/50;
+    const nv = Math.max(2, Math.min(98, t + amt*room*.5));
+    S.traits[trait] = nv;
+    if(nv >= 70 && t < 70) diary(MILESTONES[trait][0], "ever:hi-"+trait);
+    if(nv <= 30 && t > 30) diary(MILESTONES[trait][1], "ever:lo-"+trait);
+  }
+  const tr = k => S.traits[k] / 100;               // 0..1
+  const BOND = [[0,"Nyfiken på dig"],[15,"Bekant"],[45,"Vän"],[110,"Nära vän"],[220,"Bästa vän"],[400,"Själsfrände"]];
+  function bondLevel(b = S.bond){ let i = 0; while(i+1 < BOND.length && b >= BOND[i+1][0]) i++; return i; }
+  function addBond(x){
+    const before = bondLevel(); S.bond += x; const after = bondLevel();
+    if(after > before){
+      const lines = ["", "Jag känner igen dina steg nu. Du är den som visslar.", "Jag tror att vi är vänner. Riktiga.",
+        "När du är borta sparar jag saker att berätta.", "Du är min bästa vän. Säg inte det till ugglan.", "Jag vet inte hur jag ska säga det. Men du är mitt hem."];
+      diary(lines[after], "ever:bond-"+after); say("💜 "+BOND[after][1]+"!", 4000); floaty("💜", 4);
+    }
+  }
+  function personalityText(){
+    const devs = Object.keys(TRAITS).map(k => [k, S.traits[k] - 50]).filter(d => Math.abs(d[1]) >= 8).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
+    if(!devs.length) return "Hon är fortfarande lite av ett oskrivet blad. Hur du är mot henne kommer att forma vem hon blir.";
+    const words = devs.slice(0, 3).map(([k, d]) => (Math.abs(d) >= 25 ? "väldigt " : "") + TRAITS[k][d > 0 ? 0 : 1]);
+    const list = words.length > 1 ? words.slice(0,-1).join(", ") + " och " + words[words.length-1] : words[0];
+    return "Hon verkar " + list + ".";
+  }
+  let bubbleT;
+  function say(msg, ms=3800){ $("bubble").textContent = msg; clearTimeout(bubbleT); bubbleT = setTimeout(()=>$("bubble").textContent="", ms); }
+  function floaty(ch="🖤", n=4){
+    for(let i=0;i<n;i++){
+      const h = document.createElement("div"); h.className="float"; h.textContent=ch;
+      h.style.left=(38+Math.random()*24)+"%"; h.style.top=(32+Math.random()*16)+"%"; h.style.animationDelay=(i*.12)+"s";
+      $("fx").appendChild(h); setTimeout(()=>h.remove(),1900);
+    }
+  }
+  function flash(cls, ms){ const st=$("stage"); st.classList.remove(cls); void st.offsetWidth; st.classList.add(cls); setTimeout(()=>st.classList.remove(cls), ms); }
+
+  // ---------- haptics (Android: vibrate, iOS: switch-input trick) ----------
+  let hapticLabel = null;
+  function haptic(pattern=[18]){
+    if(!isIOS && navigator.vibrate){ try{ navigator.vibrate(pattern); }catch(e){} return; }
+    if(!isIOS) return;
+    if(!hapticLabel){
+      hapticLabel = document.createElement("label"); hapticLabel.style.display="none";
+      const i = document.createElement("input"); i.type="checkbox"; i.setAttribute("switch","");
+      hapticLabel.appendChild(i); document.body.appendChild(hapticLabel);
+    }
+    const taps = Math.max(1, Math.ceil(pattern.length/2));
+    for(let k=0;k<taps;k++) setTimeout(()=>hapticLabel.click(), k*70);
+  }
+  // ---------- sound (all synthesised with WebAudio – no files) ----------
+  const SFX = (() => {
+    let ac = null, master = null, muted = false, noiseBuf = null, amb = null;
+    try{ muted = localStorage.getItem("vesper-muted") === "1"; }catch(e){}
+    function unlock(){
+      if(!ac){
+        const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null;
+        ac = new AC(); master = ac.createGain(); master.gain.value = muted ? 0 : .8; master.connect(ac.destination);
+        noiseBuf = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate);
+        const d = noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+        buildAmbient(); setTimeout(applyEnvironment, 50);
+      }
+      if(ac.state === "suspended") ac.resume();
+      return ac;
+    }
+    const ready = () => ac && !muted && ac.state === "running";
+    function env(g, t, a, peak, d){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+d); }
+    function tone(type, f0, f1, dur, vol=.18, delay=0, vib=0){
+      if(!ready()) return; const t = ac.currentTime + delay;
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = type;
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), t+dur);
+      if(vib){ const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = vib; lg.gain.value = f0*.04; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t+dur+.05); }
+      env(g, t, Math.min(.015, dur/4), vol, dur); o.connect(g).connect(master); o.start(t); o.stop(t+dur+.05);
+    }
+    function noise(dur, filterType, freq, q, vol, delay=0, f1){
+      if(!ready()) return; const t = ac.currentTime + delay;
+      const src = ac.createBufferSource(); src.buffer = noiseBuf;
+      const f = ac.createBiquadFilter(); f.type = filterType; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
+      if(f1) f.frequency.exponentialRampToValueAtTime(f1, t+dur);
+      const g = ac.createGain(); env(g, t, .01, vol, dur);
+      src.connect(f).connect(g).connect(master); src.start(t, Math.random()); src.stop(t+dur+.05);
+    }
+    const S = {
+      chirp(n=2){ for(let i=0;i<n;i++) tone("sine", 3200+Math.random()*900, 4600+Math.random()*900, .05, .12, i*.08); },
+      trill(){ [0,1,2,3,4].forEach(i => tone("sine", 2600+i*320, 3400+i*380, .06, .12, i*.07)); },
+      sad(){ tone("sine", 1900, 900, .45, .12, 0, 7); },
+      grumpy(){ tone("square", 230, 170, .22, .06); tone("square", 210, 150, .25, .06, .18); },
+      munch(){ for(let i=0;i<3;i++) noise(.06, "bandpass", 1400+Math.random()*600, 2.5, .35, i*.13); S.chirp(1); },
+      purr(){
+        if(!ready()) return; const t = ac.currentTime;
+        const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain();
+        o.type = "sawtooth"; o.frequency.value = 52; f.type = "lowpass"; f.frequency.value = 260;
+        l.frequency.value = 24; lg.gain.value = .08; l.connect(lg).connect(g.gain);
+        g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.12, t+.15); g.gain.linearRampToValueAtTime(.0001, t+1.3);
+        o.connect(f).connect(g).connect(master); o.start(t); l.start(t); o.stop(t+1.4); l.stop(t+1.4);
+      },
+      flap(){ noise(.18, "lowpass", 900, .7, .25, 0, 200); },
+      pop(){ tone("sine", 700, 1600, .07, .16); noise(.04, "highpass", 3000, .7, .08); },
+      yawn(){ tone("sine", 620, 260, .7, .1, 0, 5); },
+      wake(){ tone("sine", 900, 2400, .18, .1); S.chirp(2); },
+      dizzy(){ tone("triangle", 500, 900, .25, .1, 0, 14); tone("triangle", 900, 400, .3, .1, .25, 14); },
+      jingle(){ [523,659,784,1046].forEach((f,i) => tone("triangle", f, f, .14, .12, i*.11)); },
+      peep(){ tone("sine", 2400, 2000, .08, .08); },
+      thunder(){ if(!ready()) return; noise(2.8, "lowpass", 140, .8, .7, 0, 60); noise(.5, "lowpass", 400, .8, .35); },
+      owl(){ tone("sine", 410, 370, .35, .07); tone("sine", 400, 350, .6, .07, .5, 4); },
+      // her squeaky attempt at a tune you once whistled (pitches in Hz)
+      tune(p){ p.forEach((f, i) => tone("sine", f*1.15, f*1.2, .13, .1, i*.17, 6)); },
+      sparkle(){ [1568,2093,2637].forEach((f,i) => tone("sine", f, f*1.02, .12, .07, i*.09)); },
+      setMuted(m){ muted = m; try{ localStorage.setItem("vesper-muted", m ? "1" : "0"); }catch(e){} if(master) master.gain.setTargetAtTime(m ? 0 : .8, ac.currentTime, .05); },
+      get muted(){ return muted; }, unlock,
+      ambient(kind, wind, night){ if(!amb) return; const t = ac.currentTime;
+        const rain = {drizzle:.05, rain:.12, heavy:.2, thunder:.18}[kind] || 0;
+        amb.rain.gain.setTargetAtTime(document.hidden ? 0 : rain, t, 1.5);
+        amb.wind.gain.setTargetAtTime(document.hidden ? 0 : Math.min(.12, Math.max(0, (wind-2))*.012), t, 2);
+        amb.night = night; amb.kind = kind; }
+    };
+    function buildAmbient(){
+      const mk = (type, freq, q) => { const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+        const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = ac.createGain(); g.gain.value = 0;
+        src.connect(f).connect(g).connect(master); src.start(); return {f, g}; };
+      const r = mk("lowpass", 2600, .4), w = mk("bandpass", 420, .6);
+      amb = {rain: r.g, wind: w.g, windF: w.f, night: false, kind: "clear"};
+      setInterval(() => { if(amb && ac) amb.windF.frequency.setTargetAtTime(300 + Math.random()*400, ac.currentTime, 1.5); }, 2500);
+      (function owlLoop(){ setTimeout(() => { if(amb.night && /clear|partly|cloudy/.test(amb.kind) && !document.hidden) S.owl(); owlLoop(); }, 45000 + Math.random()*90000); })();
+    }
+    return S;
+  })();
+  document.addEventListener("pointerdown", () => SFX.unlock(), {capture:true});
+  const purr = () => { haptic([12,40,12,40,12,40,12,40,12]); SFX.purr(); };
+
+  // ---------- face ----------
+  const MOUTHS = {
+    smile:"M92 98 Q100 106 108 98", open:"M91 97 Q100 112 109 97 Z", sad:"M92 104 Q100 97 108 104",
+    flat:"M94 101 L106 101", sleep:"M96 100 Q100 102 104 100"
+  };
+  function setFace(name){
+    const eyes = {idle:"Open", blink:"Closed", happy:"Happy", sad:"Sad", sleep:"Closed"}[name] || "Open";
+    for(const k of ["Open","Closed","Happy","Sad"]) $("eyes"+k).style.display = "none";
+    $("eyes"+eyes).style.display = "";
+    if(eyes === "Sad") $("eyesOpen").style.display = "";          // sad = open eyes + worried brows
+    const m = {idle:"smile", blink:"smile", happy:"open", sad:"sad", sleep:"sleep"}[name] || "smile";
+    $("mouth").setAttribute("d", MOUTHS[m]);
+    $("mouth").setAttribute("fill", m === "open" ? "#1a1022" : "none");
+    $("fangs").style.display = (m === "smile" || m === "open") ? "" : "none";
+    const blush = name === "happy" ? ".9" : name === "sad" ? ".25" : ".6";
+    $("cheekL").setAttribute("opacity", blush); $("cheekR").setAttribute("opacity", blush);
+  }
+  function lookAt(clientX, clientY){
+    const r = $("bat").getBoundingClientRect();
+    const dx = Math.max(-3, Math.min(3, (clientX - (r.left + r.width/2)) / 50));
+    const dy = Math.max(-2.5, Math.min(2.5, (clientY - (r.top + r.height/2)) / 50));
+    $("pL").setAttribute("cx", 87+dx); $("pR").setAttribute("cx", 113+dx);
+    $("pL").setAttribute("cy", 84+dy); $("pR").setAttribute("cy", 84+dy);
+    $("gL").setAttribute("cx", 90+dx); $("gR").setAttribute("cx", 116+dx);
+    $("gL").setAttribute("cy", 80+dy); $("gR").setAttribute("cy", 80+dy);
+  }
+  document.addEventListener("pointermove", e => lookAt(e.clientX, e.clientY));
+  document.addEventListener("pointerdown", e => lookAt(e.clientX, e.clientY));
+
+  // ---------- sun / day-night ----------
+  const rad = Math.PI/180, dayMs = 864e5, J1970 = 2440588, J2000 = 2451545, e = rad*23.4397;
+  const toDays = d => d.valueOf()/dayMs - 0.5 + J1970 - J2000;
+  const fromJ = j => new Date((j + 0.5 - J1970) * dayMs);
+  function sunTimes(date, lat, lng){
+    const lw = rad*-lng, phi = rad*lat, d = toDays(date);
+    const n = Math.round(d - 0.0009 - lw/(2*Math.PI));
+    const ds = 0.0009 + lw/(2*Math.PI) + n;
+    const M = rad*(357.5291 + 0.98560028*ds);
+    const L = M + rad*(1.9148*Math.sin(M) + 0.02*Math.sin(2*M) + 0.0003*Math.sin(3*M)) + rad*102.9372 + Math.PI;
+    const dec = Math.asin(Math.sin(e)*Math.sin(L));
+    const Jnoon = J2000 + ds + 0.0053*Math.sin(M) - 0.0069*Math.sin(2*L);
+    const w = Math.acos((Math.sin(-0.833*rad) - Math.sin(phi)*Math.sin(dec)) / (Math.cos(phi)*Math.cos(dec)));
+    const Jset = J2000 + 0.0009 + (w + lw)/(2*Math.PI) + n + 0.0053*Math.sin(M) - 0.0069*Math.sin(2*L);
+    return {rise: fromJ(Jnoon - (Jset - Jnoon)), set: fromJ(Jset)};
+  }
+  function sunNow(){
+    const loc = S.loc || NYKOPING, now = new Date();
+    const t = sunTimes(now, loc.lat, loc.lng);
+    if(isNaN(t.rise)) { const h = now.getHours(); return {day: h>=7 && h<17, t:null}; }
+    return {day: now >= t.rise && now < t.set, t};
+  }
+  const hm = d => d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
+
+  // sun altitude in degrees (SunCalc)
+  function sunAlt(date, lat, lng){
+    const lw = rad*-lng, phi = rad*lat, d = toDays(date);
+    const M = rad*(357.5291 + 0.98560028*d);
+    const L = M + rad*(1.9148*Math.sin(M) + 0.02*Math.sin(2*M) + 0.0003*Math.sin(3*M)) + rad*102.9372 + Math.PI;
+    const dec = Math.asin(Math.sin(e)*Math.sin(L)), ra = Math.atan2(Math.sin(L)*Math.cos(e), Math.cos(L));
+    const H = rad*(280.16 + 360.9856235*d) - lw - ra;
+    return Math.asin(Math.sin(phi)*Math.sin(dec) + Math.cos(phi)*Math.cos(dec)*Math.cos(H)) / rad;
+  }
+  // moon phase 0..1 (0 = new, .5 = full)
+  function moonPhase(date){ let p = ((date - Date.UTC(2000,0,6,18,14)) / dayMs / 29.530588853) % 1; return p < 0 ? p+1 : p; }
+  function moonPath(p){
+    const r = 20, cx = 24, cy = 24, k = Math.cos(2*Math.PI*p), rx = Math.abs(k)*r, waxing = p < .5;
+    const limb = waxing ? 1 : 0, term = waxing ? (k > 0 ? 0 : 1) : (k > 0 ? 1 : 0);
+    return `M${cx} ${cy-r} A${r} ${r} 0 0 ${limb} ${cx} ${cy+r} A${rx} ${r} 0 0 ${term} ${cx} ${cy-r} Z`;
+  }
+  function moonName(p){
+    return p < .03 || p > .97 ? "nymåne" : p < .22 ? "växande skära" : p < .28 ? "första kvarteret" : p < .47 ? "växande måne"
+      : p < .53 ? "fullmåne" : p < .72 ? "avtagande måne" : p < .78 ? "sista kvarteret" : "avtagande skära";
+  }
+  const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+  const mix = (a, b, t) => { const A = hex(a), B = hex(b); return "#"+A.map((v,i) => Math.round(v+(B[i]-v)*t).toString(16).padStart(2,"0")).join(""); };
+  const SKY = [[-18,"#05040a","#0e0a16"],[-12,"#0a0a1e","#1a1230"],[-6,"#141a40","#4a2a4a"],[-2,"#26305a","#9a4a50"],
+               [2,"#3c4c78","#d88a5a"],[8,"#56709e","#cfa88c"],[25,"#6a86b0","#aab4c4"]];
+  function skyColors(alt){
+    if(alt <= SKY[0][0]) return [SKY[0][1], SKY[0][2]];
+    for(let i=1;i<SKY.length;i++) if(alt <= SKY[i][0]){
+      const a = SKY[i-1], b = SKY[i], t = (alt-a[0])/(b[0]-a[0]); return [mix(a[1],b[1],t), mix(a[2],b[2],t)];
+    }
+    const z = SKY[SKY.length-1]; return [z[1], z[2]];
+  }
+
+  // ---------- weather (Open-Meteo, no key needed) ----------
+  const WX_NAMES = {clear:"Klart", partly:"Halvklart", cloudy:"Mulet", fog:"Dimma", drizzle:"Duggregn", rain:"Regn", heavy:"Skyfall", snow:"Snö", thunder:"Åska"};
+  const WX_CYCLE = ["auto","clear","cloudy","fog","rain","heavy","snow","thunder"];
+  let W = {kind:"clear", temp:null, wind:2, cloud:0, live:false, at:0};
+  let wxOverride = "auto";
+  try{ const c = JSON.parse(localStorage.getItem("vesper-wx")); if(c && c.at) W = c; }catch(e){}
+  function wxKind(code){
+    if(code <= 1) return "clear"; if(code === 2) return "partly"; if(code === 3) return "cloudy"; if(code === 45 || code === 48) return "fog";
+    if(code >= 51 && code <= 57) return "drizzle"; if(code === 65 || code === 67 || code === 82) return "heavy";
+    if((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "rain"; if((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+    if(code >= 95) return "thunder"; return "cloudy";
+  }
+  async function fetchWeather(){
+    const loc = S.loc || NYKOPING;
+    try{
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&current=temperature_2m,weather_code,cloud_cover,wind_speed_10m&wind_speed_unit=ms`);
+      const j = await r.json(), c = j.current;
+      W = {kind: wxKind(c.weather_code), temp: Math.round(c.temperature_2m), wind: c.wind_speed_10m, cloud: c.cloud_cover/100, live: true, at: Date.now()};
+      try{ localStorage.setItem("vesper-wx", JSON.stringify(W)); }catch(e){}
+    }catch(e){ /* offline: keep the last known weather */ }
+    applyEnvironment(true);
+  }
+  const wxNow = () => {
+    if(wxOverride === "auto") return W;
+    const k = wxOverride, cloud = {clear:0, cloudy:.9, fog:.7, rain:.9, heavy:1, snow:.9, thunder:1}[k] ?? .5;
+    return {kind:k, temp: k === "snow" ? -3 : (W.temp ?? 8), wind: k === "thunder" || k === "heavy" ? 9 : k === "snow" ? 4 : 3, cloud, live:false};
+  };
+  const isWet = k => /drizzle|rain|heavy|thunder/.test(k);
+
+  let lastWxKind = null;
+  function applyEnvironment(fromFetch){
+    const loc = S.loc || NYKOPING, now = new Date(), alt = sunAlt(now, loc.lat, loc.lng), w = wxNow();
+    const cloud = Math.max(w.cloud || 0, w.kind === "fog" ? .6 : 0);
+    let [top, bottom] = skyColors(alt);
+    const night = alt < -6, grey = alt > 0 ? "#6c6e78" : alt > -8 ? "#2c2a36" : "#121118";
+    top = mix(top, grey, cloud*.75); bottom = mix(bottom, grey, cloud*.6);
+    if(w.kind === "fog") { const f = alt > 0 ? "#8a8a92" : "#2a2833"; top = mix(top, f, .5); bottom = mix(bottom, f, .6); }
+    $("sky").style.background = `linear-gradient(${top}, ${bottom})`;
+    $("glow").style.opacity = Math.max(0, 1 - Math.abs(alt - 1)/8) * (1 - cloud*.8);
+    $("stars").style.opacity = Math.max(0, Math.min(1, (-alt - 4)/8)) * (1 - cloud*.95);
+    const p = moonPhase(now); $("moonLit").setAttribute("d", moonPath(p));
+    $("moon").style.opacity = (alt < 3 && !(p < .03 || p > .97)) ? (1 - cloud*.85) : 0;
+    const phaseName = alt > 6 ? "Dag – sovtid" : alt > 0 ? (now.getHours() < 12 ? "Morgon – snart sovtid" : "Kväll – snart vaken")
+      : alt > -6 ? (now.getHours() < 12 ? "Gryning" : "Skymning") : alt > -12 ? "Blå timmen" : "Natt – vaken tid";
+    $("phase").textContent = phaseName;
+    $("wxLine").textContent = (w.temp != null ? w.temp + "° " : "") + (WX_NAMES[w.kind] || "") + " · ☾ " + moonName(p) + (wxOverride !== "auto" ? " (test)" : "");
+    Wx.set(w, night || alt < 0);
+    SFX.ambient(w.kind, w.wind || 0, alt < -6);
+    if(lastWxKind !== null && lastWxKind !== w.kind) reactToWeather(w);
+    else if(lastWxKind === null && fromFetch && !S.asleep && !S.away) setTimeout(() => reactToWeather(w, true), 7000);
+    lastWxKind = w.kind;
+  }
+  function reactToWeather(w, gentle){
+    if(S.asleep || S.away || gameOn) return;
+    const lines = {
+      rain: "Det regnar… hon kryper ihop under takfoten och lyssnar på dropparna.",
+      heavy: "Skyfall! Hon drar vingarna över huvudet som ett paraply.",
+      drizzle: "Duggregn. Hon fnyser åt de små dropparna.",
+      snow: "Snö! Hon tittar förundrat på flingorna som singlar förbi.",
+      fog: "Dimma – perfekt spökväder. Hon ser väldigt nöjd ut.",
+      thunder: "ÅSKA! Hon gömmer sig bakom gravstenen.",
+      clear: sunNow().day ? "Klart väder. Lite för ljust för hennes smak." : "Klar himmel – stjärnorna är ute och hon med.",
+      cloudy: "Mulet. Hon gillar när himlen är lika grå som hon.",
+      partly: "Moln som glider förbi månen. Stämningsfullt."
+    };
+    say(lines[w.kind] || "", 5000);
+    if(w.kind === "thunder"){ react("sad", 2500); SFX.sad(); }
+    else if(w.kind === "snow" || w.kind === "fog" || (w.kind === "clear" && !sunNow().day)){ react("happy", 2000); SFX.chirp(3); }
+    else if(!gentle && isWet(w.kind)) { react("sad", 1500); }
+  }
+
+  // ---------- weather animation (canvas) ----------
+  const Wx = (() => {
+    const back = $("wxBack"), front = $("wxFront"), bg = back.getContext("2d"), fg = front.getContext("2d");
+    let w = {kind:"clear", wind:2, cloud:0}, dark = true, drops = [], clouds = [], fogT = 0, W_ = 0, H_ = 0, dpr = 1, nextBolt = 0;
+    function size(){
+      dpr = Math.min(2, window.devicePixelRatio || 1); W_ = back.clientWidth; H_ = back.clientHeight;
+      for(const c of [back, front]){ c.width = W_*dpr; c.height = H_*dpr; }
+      bg.setTransform(dpr,0,0,dpr,0,0); fg.setTransform(dpr,0,0,dpr,0,0);
+    }
+    function seed(){
+      const n = {drizzle:60, rain:140, heavy:260, thunder:220, snow:90}[w.kind] || 0;
+      drops = Array.from({length:n}, () => ({x:Math.random()*W_, y:Math.random()*H_, v:.6+Math.random()*.6, s:Math.random()}));
+      const nc = Math.round(w.cloud*7);
+      clouds = Array.from({length:nc}, (_, i) => ({x:Math.random()*W_*1.4 - W_*.2, y:8+Math.random()*90, k:.6+Math.random()*.9, v:.15+Math.random()*.25}));
+    }
+    function cloudShape(ctx, c){
+      ctx.beginPath();
+      [[0,0,26],[22,-8,22],[44,0,24],[18,8,22],[-18,6,18]].forEach(([dx,dy,r]) => { ctx.moveTo(c.x+dx*c.k + r*c.k, c.y+dy*c.k); ctx.arc(c.x+dx*c.k, c.y+dy*c.k, r*c.k, 0, Math.PI*2); });
+      ctx.fill();
+    }
+    function frame(){
+      requestAnimationFrame(frame);
+      if(document.hidden || !W_) return;
+      bg.clearRect(0,0,W_,H_); fg.clearRect(0,0,W_,H_);
+      const wind = Math.max(-1, Math.min(1, (w.wind||0)/10));
+      // clouds
+      bg.fillStyle = dark ? `rgba(38,34,50,${.55*w.cloud})` : `rgba(205,205,215,${.45*w.cloud})`;
+      for(const c of clouds){ c.x += c.v*(.4 + Math.abs(wind)); if(c.x - 60*c.k > W_) c.x = -80*c.k; cloudShape(bg, c); }
+      // fog bands
+      if(w.kind === "fog"){
+        fogT += .002;
+        for(let i=0;i<3;i++){
+          const y = H_*(.45 + i*.18), off = Math.sin(fogT*(1+i*.3) + i)*60;
+          const g = bg.createLinearGradient(0, y-40, 0, y+40); const c = dark ? "60,56,72" : "200,200,206";
+          g.addColorStop(0, `rgba(${c},0)`); g.addColorStop(.5, `rgba(${c},.35)`); g.addColorStop(1, `rgba(${c},0)`);
+          bg.fillStyle = g; bg.fillRect(-80 + off, y-40, W_+160, 80);
+        }
+      }
+      // precipitation
+      if(w.kind === "snow"){
+        fg.fillStyle = "rgba(240,240,255,.85)";
+        for(const d of drops){
+          d.y += .5 + d.v*.7; d.x += wind*1.2 + Math.sin((d.y + d.s*100)/22)*.4;
+          if(d.y > H_){ d.y = -4; d.x = Math.random()*W_; } if(d.x > W_) d.x = 0; if(d.x < 0) d.x = W_;
+          fg.beginPath(); fg.arc(d.x, d.y, 1 + d.s*1.6, 0, Math.PI*2); fg.fill();
+        }
+      } else if(drops.length){
+        fg.strokeStyle = dark ? "rgba(170,180,215,.45)" : "rgba(220,228,245,.55)"; fg.lineWidth = 1; fg.beginPath();
+        const vx = wind*4, speed = w.kind === "drizzle" ? 6 : 11;
+        for(const d of drops){
+          d.y += speed*d.v; d.x += vx*d.v;
+          if(d.y > H_){ d.y = -10; d.x = Math.random()*(W_+40) - 20; }
+          const len = w.kind === "drizzle" ? 5 : 10 + d.s*6;
+          fg.moveTo(d.x, d.y); fg.lineTo(d.x - vx*.6, d.y - len);
+        }
+        fg.stroke();
+      }
+      // lightning
+      if(w.kind === "thunder" && Date.now() > nextBolt){
+        nextBolt = Date.now() + 6000 + Math.random()*14000;
+        const fl = $("flashLayer"); fl.style.transition = "none"; fl.style.opacity = .75;
+        setTimeout(() => { fl.style.transition = "opacity .9s"; fl.style.opacity = 0; }, 90);
+        setTimeout(() => { SFX.thunder(); if(!S.asleep && !S.away){ react("sad", 1500); haptic([60,40,90]); } }, 300 + Math.random()*1200);
+      }
+    }
+    window.addEventListener("resize", () => { size(); seed(); });
+    size(); requestAnimationFrame(frame);
+    return { set(nw, isDark){ const changed = nw.kind !== w.kind || Math.round(nw.cloud*7) !== clouds.length; w = nw; dark = isDark; if(changed || !W_){ size(); seed(); } } };
+  })();
+
+  // ---------- simulation ----------
+  const STORIES = [
+    "kom hem med ett spindelnät i örat och verkar ha träffat en uggla.",
+    "hittade en gammal kyrkklocka att hänga i hela natten.",
+    "har flugit över Nyköpingsån och luktar lite tång.",
+    "kom tillbaka med en glänsande knapp. Ingen vet varifrån.",
+    "har sett ett stjärnfall och vill berätta om det."
+  ];
+  function step(h, offline){
+    if(S.trip) return;                                  // out on an adventure: needs are handled on return
+    if(offline && !S.away){
+      // While the app is closed she lives at her own pace: slower needs, soft floors, never runs away.
+      const day = sunNow().day;
+      S.hunger = Math.max(Math.min(S.hunger, 35), S.hunger - (S.asleep ? 1.5 : 3)*h);
+      S.mood = Math.max(Math.min(S.mood, 45), S.mood - (S.asleep ? .5 : 1.5)*h);
+      if(S.asleep){ S.energy += 16*h; if(S.energy >= 100 && !day){ S.asleep = false; } }
+      else { S.energy -= 4*h; if(S.energy <= 15 || (day && S.energy < 70)){ S.asleep = true; } }
+      S.hunger=clamp(S.hunger); S.mood=clamp(S.mood); S.energy=clamp(S.energy); S.neglect = 0;
+      return;
+    }
+    if(S.away){
+      if(Date.now() >= S.awayUntil){
+        S.away=false; S.hunger=45; S.mood=55; S.energy=Math.max(S.energy,40); S.neglect=0;
+        const s = STORIES[Math.floor(Math.random()*STORIES.length)];
+        log(S.name+" "+s); say(S.name+" är tillbaka! Hon "+s, 6000); SFX.trill();
+      }
+      return;
+    }
+    const day = sunNow().day;
+    S.hunger -= (S.asleep ? 3 : 7) * h;
+    S.mood -= (S.asleep ? 1 : 4)*h + (S.hunger<25 ? 5*h : 0) + (!S.asleep && day ? 2*h : 0);
+    if(S.asleep){ S.energy += 16*h; if(S.energy >= 100){ S.asleep=false; log(S.name+" vaknade utvilad."); } }
+    else { S.energy -= (day ? 10 : 5)*h; if(S.energy <= 0){ S.asleep=true; log(S.name+" somnade av ren utmattning."); } }
+    S.hunger=clamp(S.hunger); S.mood=clamp(S.mood); S.energy=clamp(S.energy);
+    if(S.hunger<=0 && S.mood<=15) S.neglect += h; else S.neglect = Math.max(0, S.neglect-h);
+    if(S.neglect >= 3){ S.away=true; S.asleep=false; S.awayUntil=Date.now()+45*60e3; log(S.name+" blev så ledsen att hon flög ut i natten…"); }
+  }
+  function tick(){
+    const now = Date.now(), gap = (now - S.last)/3.6e6;
+    // Gaps longer than ~10 minutes mean the app was closed: simulate gently (no punishment for being away).
+    const offline = gap > 1/6;
+    let left = Math.min(gap, 96);
+    while(left > 0){ const d = Math.min(.1, left); step(d, offline); left -= d; }
+    S.last = now;
+    if(S.trip && now >= S.trip.until) finishTrip();
+    save(); render();
+  }
+
+  // ---------- render ----------
+  let blinkUntil = 0, reactFrame = null, reactUntil = 0;
+  function currentFrame(){
+    if(S.asleep) return "sleep";
+    const now = Date.now();
+    if(reactFrame && now < reactUntil) return reactFrame;
+    if(S.mood < 30 || S.hunger < 20) return "sad";
+    if(now < blinkUntil) return "blink";
+    return "idle";
+  }
+  function react(f, ms){ reactFrame=f; reactUntil=Date.now()+ms; setFace(f); }
+  function animate(){
+    if(Math.random() < .06) blinkUntil = Date.now()+170;
+    setFace(currentFrame());
+    $("stage").classList.toggle("slow", S.energy < 30);
+    setTimeout(animate, 160);
+  }
+  const color = v => v>60 ? "var(--moss)" : v>30 ? "var(--gold)" : "var(--rose)";
+  function setBar(k,v){ $("f"+k).style.width=v+"%"; $("f"+k).style.background=color(v); $("v"+k).textContent=Math.round(v); }
+
+  function render(){
+    const sun = sunNow(), day = sun.day, st = $("stage");
+    st.classList.toggle("day", day);
+    st.classList.toggle("sleeping", S.asleep && !S.away && !S.trip);
+    st.classList.toggle("away", S.away || !!S.trip);
+    $("sun").textContent = sun.t ? (day ? "Solnedgång "+hm(sun.t.set) : "Soluppgång "+hm(sunTimes(new Date(Date.now()+ (new Date().getHours()>=12?dayMs:0)), (S.loc||NYKOPING).lat,(S.loc||NYKOPING).lng).rise)) : "";
+    const days = (Date.now()-S.born)/dayMs;
+    $("name").firstChild.nodeValue = S.name;
+    $("stageLbl").textContent = days<1 ? "fladdermusunge" : days<4 ? "ung fladdermus" : days<14 ? "nattens väktare" : "kyrktornets drottning";
+    $("batWrap").style.scale = days<1 ? .82 : days<4 ? .92 : 1;
+    setBar("Hunger",S.hunger); setBar("Energy",S.energy); setBar("Mood",S.mood);
+
+    const off = S.away || !!S.trip;
+    $("bFeed").disabled = off || S.asleep;
+    $("bPlay").disabled = off || S.asleep || S.energy < 15;
+    $("bPhoto").disabled = off;
+    $("bWhistle").disabled = off;
+    $("bSleep").disabled = off;
+    $("bSleep").innerHTML = S.asleep ? "<i>☀️</i>Väck" : "<i>🌙</i>Sov";
+    if(S.trip){
+      const left = Math.max(0, Math.ceil((S.trip.until - Date.now())/60e3));
+      $("bTrip").innerHTML = "<i>🌲</i>"+(left <= 1 ? "Snart hemma" : left+" min kvar");
+    } else $("bTrip").innerHTML = "<i>🌲</i>Utflykt";
+    $("bTrip").disabled = S.away;
+    $("bCollect").innerHTML = "<i>🎒</i>Samling" + (S.newItems.length ? " •" : "");
+
+    let tip;
+    if(S.trip) tip = S.name+" är på utflykt i "+PLACES[S.trip.place].name.toLowerCase()+". Hon kommer hem med något att berätta – du behöver inte vänta här.";
+    else if(off) tip = S.name+" är ute och flyger. Hon kommer hem om en stund – kanske med något att berätta.";
+    else if(S.asleep) tip = day ? "Fladdermöss sover på dagen. Skaka telefonen om du verkligen måste väcka henne." : "Hon sover… och vaknar själv när energin är full.";
+    else if(S.hunger < 25) tip = S.name+" är hungrig. Ett fikon eller en nattfjärilsjakt vore fint.";
+    else if(day && S.energy < 60) tip = "Det är ljust ute. Hon blir trött och grinig av dagsljus.";
+    else if(S.mood < 35) tip = "Hon behöver uppmärksamhet. Klappa henne, eller visa henne en vacker bild.";
+    else if(battery && battery.level < .15 && !battery.charging) tip = "Telefonen har nästan slut på ström och "+S.name+" gäspar i takt.";
+    else if(battery && battery.charging) tip = S.name+" värmer sig vid laddaren.";
+    else if(wxNow().kind === "thunder") tip = "Åskan skrämmer henne. Klappa henne lite så hon känner sig trygg.";
+    else if(isWet(wxNow().kind)) tip = "Det regnar ute – färre nattfjärilar i luften i kväll.";
+    else if(wxNow().kind === "snow") tip = "Snö! Riktiga fladdermöss sover vintersömn nu. Hon är en tapper liten undantagsfladdermus.";
+    else if(wxNow().temp != null && wxNow().temp < 0) tip = "Det är minusgrader – hon fluffar upp pälsen.";
+    else tip = day ? "Ovanligt pigg för att vara dag." : "En fin natt. Tryck på henne för att klappa.";
+    $("tip").textContent = tip;
+  }
+
+  // ---------- actions ----------
+  $("bFeed").onclick = () => {
+    if(S.hunger > 90){ S.mood=clamp(S.mood-4); say("Nej tack, mätt!"); react("sad",1000); SFX.grumpy(); }
+    else { S.hunger=clamp(S.hunger+25); S.mood=clamp(S.mood+3); say("Mums, ett moget fikon!"); floaty("🍇",2); react("happy",1400); haptic([25]); SFX.munch(); log(S.name+" åt ett fikon."); addBond(.3); }
+    save(); render();
+  };
+  function pet(){
+    if(S.away || S.trip) return;
+    lastInteract = Date.now();
+    if(S.asleep){ S.mood=clamp(S.mood+2); say("…mmm…"); purr(); save(); render(); return; }
+    const now = Date.now();
+    // an independent Vesper has had enough sooner; a social one can take more cuddles
+    const cool = 9000 + tr("independence")*14000 - tr("sociability")*5000;
+    if(now - S.petAt < cool){ say(S.traits.independence > 65 ? "Okej, okej. Det räcker nu." : "Lite lagom, tack."); SFX.peep(); return; }
+    S.petAt = now; S.mood = clamp(S.mood+10);
+    const lines = ["Ïïï!","*kvittrar nöjt*","*vecklar in sig i vingarna*","*spinner som en liten katt*"];
+    if(S.traits.sociability > 62) lines.push("*trycker huvudet mot ditt finger*", "Mer! Mer!");
+    if(S.traits.courage < 38) lines.push("*kikar fram bakom vingen*");
+    if(S.traits.playfulness > 62) lines.push("*nafsar lekfullt efter fingret*");
+    if(S.traits.independence > 62) lines.push("*låter dig klappa. Lite nådigt.*");
+    say(pick(lines));
+    nudge("sociability", 1); nudge("independence", -.6); addBond(1);
+    if(Math.random() < .25) diary(pick(["Du klappade mig i natt. Pälsen kändes varm efteråt, länge.","Ditt finger luktar lite som fikon. Jag gillar det.","Jag låtsades sova när du klappade mig. Bara för att det skulle fortsätta."]), "pet");
+    floaty(); react("happy",1500); purr(); SFX.chirp(3); save(); render();
+  }
+  $("bat").addEventListener("click", pet);
+  function toggleSleep(src){
+    if(S.away || S.trip) return;
+    lastInteract = Date.now();
+    if(S.asleep){
+      S.asleep=false;
+      if(S.energy<50){ S.mood=clamp(S.mood-10); say("Grrr… varför väcker du mig?"); react("sad",2000); SFX.grumpy(); log(S.name+" blev väckt för tidigt"+(src?" ("+src+")":"")+".");
+        nudge("independence", .8);
+        diary(pick(["Du väckte mig mitt i en dröm om en jättelik nattfjäril. Jag är fortfarande lite sur.","Någon väckte mig. Jag nämner inga namn. (Det var du.)"]), "woken"); }
+      else { say("God natt-morgon!"); react("happy",1200); SFX.wake(); }
+    } else {
+      S.asleep=true; SFX.yawn(); say(sunNow().day ? "Äntligen. Dagsljus är hemskt." : "Bara en liten tupplur…");
+      nudge("playfulness", -.5); nudge("courage", .3);
+      log(S.name+" hängde upp sig för att sova"+(src?" ("+src+")":"")+".");
+    }
+    haptic([30]); save(); render(); setFace(currentFrame());
+  }
+  $("bSleep").onclick = () => toggleSleep();
+
+  // ---------- photo critique ----------
+  $("bPhoto").onclick = () => { $("photoIn").value=""; $("photoIn").click(); };
+  $("pAgain").onclick = () => { closeSheets(); $("bPhoto").click(); };
+  $("photoIn").onchange = async e => {
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    openSheet("sPhoto"); $("pTitle").textContent="Vesper tittar…"; $("pScore").textContent="…"; $("pSay").textContent=""; $("pCrit").innerHTML="";
+    try{
+      const img = await loadImage(f);
+      const r = analyze(img);
+      showResult(r);
+    }catch(err){ $("pTitle").textContent="Hoppsan"; $("pSay").textContent="Den bilden kunde Vesper inte se. Prova en annan."; }
+  };
+  function loadImage(file){
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file), im = new Image();
+      im.onload = () => { res(im); setTimeout(()=>URL.revokeObjectURL(url), 5000); };
+      im.onerror = rej; im.src = url;
+    });
+  }
+  function analyze(im){
+    const max = 480, sc = Math.min(1, max/Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.max(8, Math.round(im.naturalWidth*sc)), h = Math.max(8, Math.round(im.naturalHeight*sc));
+    const cv = document.createElement("canvas"); cv.width=w; cv.height=h;
+    const g = cv.getContext("2d", {willReadFrequently:true}); g.drawImage(im,0,0,w,h);
+    const d = g.getImageData(0,0,w,h).data, N = w*h, L = new Float32Array(N);
+    let sum=0, sum2=0, hi=0, lo=0, rgS=0, rgS2=0, ybS=0, ybS2=0;
+    for(let i=0,p=0;i<N;i++,p+=4){
+      const r=d[p], gg=d[p+1], b=d[p+2], l=(.2126*r+.7152*gg+.0722*b)/255;
+      L[i]=l; sum+=l; sum2+=l*l; if(l>.98) hi++; if(l<.02) lo++;
+      const rg=r-gg, yb=.5*(r+gg)-b; rgS+=rg; rgS2+=rg*rg; ybS+=yb; ybS2+=yb*yb;
+    }
+    const mean=sum/N, std=Math.sqrt(Math.max(0,sum2/N-mean*mean));
+    const mrg=rgS/N, myb=ybS/N, srg=Math.sqrt(Math.max(0,rgS2/N-mrg*mrg)), syb=Math.sqrt(Math.max(0,ybS2/N-myb*myb));
+    const colorful = Math.sqrt(srg*srg+syb*syb) + .3*Math.sqrt(mrg*mrg+myb*myb);
+    // sharpness: variance of laplacian + gradient energy for composition
+    let ls=0, ls2=0, n=0, ex=0, ey=0, et=0, stars=0;
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+      const i=y*w+x, c=L[i];
+      const lap = 4*c - L[i-1] - L[i+1] - L[i-w] - L[i+w];
+      ls+=lap; ls2+=lap*lap; n++;
+      const gx=L[i+1]-L[i-1], gy=L[i+w]-L[i-w], gm=Math.sqrt(gx*gx+gy*gy);
+      ex+=gm*x; ey+=gm*y; et+=gm;
+      if(c>.55 && c>L[i-1] && c>=L[i+1] && c>L[i-w] && c>=L[i+w] && (c - (L[i-2*w]||0)) > .25 && mean < .2) stars++;
+    }
+    const lapVar = (ls2/n - (ls/n)**2) * 255*255;
+    const sharp = Math.max(0, Math.min(1, (Math.log10(lapVar+1) - 1.2) / 1.6));
+    const night = mean < .2;
+    // moon: compact bright blob in a dark frame
+    let bx0=w,by0=h,bx1=0,by1=0,bc=0;
+    if(night){ for(let y=0;y<h;y++) for(let x=0;x<w;x++) if(L[y*w+x]>.8){ bc++; if(x<bx0)bx0=x; if(x>bx1)bx1=x; if(y<by0)by0=y; if(y>by1)by1=y; } }
+    const bw=bx1-bx0+1, bh=by1-by0+1;
+    const moon = night && bc > N*.001 && bc < N*.12 && bw>4 && Math.abs(bw-bh)/Math.max(bw,bh) < .3 && bc/(bw*bh) > .5;
+    const starry = night && !moon && stars > 25;
+    // exposure (night shots are allowed to be dark)
+    const target = night ? .12 : .46;
+    const clip = (hi+lo)/N;
+    const exposure = Math.max(0, Math.min(1, 1 - Math.abs(mean-target)*(night?3:2.2) - Math.max(0,clip-.02)*3));
+    const contrast = Math.max(0, Math.min(1, std/.22));
+    const colour = Math.max(0, Math.min(1, colorful/75));
+    // composition: energy centroid vs rule-of-thirds points (centre also ok)
+    const cx = et? ex/et/w : .5, cy = et? ey/et/h : .5;
+    let dmin = 9; for(const tx of [1/3,2/3]) for(const ty of [1/3,2/3]) dmin = Math.min(dmin, Math.hypot(cx-tx, cy-ty));
+    const dc = Math.hypot(cx-.5, cy-.5);
+    const comp = Math.max(.35, Math.min(1, 1 - dmin/.22), dc < .06 ? .6 : 0);
+    let score = 100*(.30*sharp + .25*exposure + .18*colour + .15*comp + .12*contrast);
+    if(starry) score += 15; if(moon) score += 12;
+    score = Math.round(Math.max(1, Math.min(100, score)));
+    const thumb = (()=>{ const t=document.createElement("canvas"), s=160, k=Math.max(s/w, s/h); t.width=s; t.height=s;
+      t.getContext("2d").drawImage(cv, (s-w*k)/2, (s-h*k)/2, w*k, h*k); return t.toDataURL("image/jpeg",.72); })();
+    return {score, sharp, exposure, colour, comp, contrast, night, starry, moon, thumb};
+  }
+  const DEF = {"Skärpa":"skärpan","Exponering":"exponeringen","Färg":"färgen","Komposition":"kompositionen","Kontrast":"kontrasten"};
+  const cap = t => t[0].toUpperCase()+t.slice(1);
+  function showResult(r){
+    const recent = S.photos.filter(t => Date.now()-t < 3.6e6).length;
+    const factor = 1/(1+recent*.5);
+    S.photos = S.photos.filter(t => Date.now()-t < 3.6e6).concat(Date.now());
+    const dMood = Math.round(r.score/4*factor), dHunger = Math.round(r.score/12*factor);
+    if(!S.asleep){ S.mood=clamp(S.mood+dMood); S.hunger=clamp(S.hunger+dHunger); }
+    let line;
+    const crit = [["Skärpa",r.sharp],["Exponering",r.exposure],["Färg",r.colour],["Komposition",r.comp],["Kontrast",r.contrast]];
+    const worst = crit.slice().sort((a,b)=>a[1]-b[1])[0][0], best = crit.slice().sort((a,b)=>b[1]-a[1])[0][0];
+    if(S.asleep) line = "Hon kikar med ett halvt öga och somnar om. Visa den igen i natt!";
+    else if(r.starry) line = "STJÄRNOR! Hon flaxar runt som galen – det här är hennes himmel.";
+    else if(r.moon) line = "Månen! Hon tittar länge och andas ut. Den finaste lampan som finns.";
+    else if(r.score >= 80) line = "Hon är tyst en lång stund. Sedan ett litet förtjust pip. "+cap(DEF[best])+" är fantastisk.";
+    else if(r.score >= 60) line = "Fint! Hon gillar särskilt "+DEF[best]+". Lite bättre "+worst.toLowerCase()+" så blir det magiskt.";
+    else if(r.score >= 40) line = "Hon lutar på huvudet. Det är något där – men "+DEF[worst]+" kan bli bättre.";
+    else line = "Hon blinkar förvirrat. "+cap(DEF[worst])+" behöver mer kärlek.";
+    if(!S.asleep && factor < 1) line += " (Lite mindre imponerad nu – du har visat många bilder senaste timmen.)";
+    $("pTitle").textContent = r.starry ? "Nattens bild ✦" : r.moon ? "Månbild ☾" : "Vespers omdöme";
+    $("pImg").src = r.thumb; $("pScore").textContent = r.score; $("pSay").textContent = line;
+    $("pCrit").innerHTML = crit.map(([k,v]) => '<div class="crit"><span>'+k+'</span><div class="track"><div class="fill" style="width:'+Math.round(v*100)+'%;background:'+color(v*100)+'"></div></div><span>'+Math.round(v*10)+'</span></div>').join("")
+      + (r.starry || r.moon ? '<div class="crit"><span>Nattbonus</span><span style="color:var(--gold)">+'+(r.starry?15:12)+'</span><span></span></div>' : "");
+    if(!S.asleep){
+      if(r.score >= 60 || r.starry || r.moon){ react("happy", 2500); floaty(r.starry ? "✦" : r.moon ? "☾" : "🖤", 5); purr(); SFX.trill(); if(r.score>=80 || r.starry){ flash("loop",1300); SFX.flap(); } }
+      else if(r.score < 35){ react("sad", 2000); SFX.sad(); }
+      else SFX.chirp(2);
+    }
+    log(S.name+" fick se en bild ("+r.score+" p)"+(r.starry?" – stjärnhimmel!":r.moon?" – månen!":"")+".");
+    if(!S.asleep){
+      nudge("curiosity", 1.2); addBond(1);
+      if(r.starry) diary("Du visade mig en bild full av stjärnor. Jag har bestämt att den översta till vänster är min.", "ever:starphoto") || diary("Fler stjärnor från din värld! Jag räknade dem. Jag kom till sju, sedan blev jag förvirrad.", "starphoto");
+      else if(r.moon) diary("Du har en måne i din telefon. Jag visste inte att man kunde ta med sig den.", "moonphoto");
+      else if(r.score >= 80) diary("Du visade mig något så vackert att jag glömde att blinka. "+r.score+" poäng. Jag ger aldrig så mycket.", "bestphoto");
+      else if(r.score < 30) diary("Du visade mig en suddig bild. Jag tror att det var en sko? Eller en katt. Jag låtsades att jag förstod.", "badphoto");
+    }
+    gallery.push({t:Date.now(), s:r.score, img:r.thumb}); gallery.sort((a,b)=>b.s-a.s); gallery = gallery.slice(0,12); saveGallery();
+    save(); render();
+  }
+  function renderGallery(){
+    $("gal").innerHTML = gallery.length ? gallery.map(g => '<figure><img src="'+g.img+'" alt=""><figcaption>'+g.s+'</figcaption></figure>').join("")
+      : '<p style="grid-column:1/-1">Inga bilder än. Visa henne något vackert!</p>';
+  }
+
+  // ---------- microphone: whistle & clap ----------
+  let listening = false;
+  $("listening").innerHTML = "<span></span>".repeat(9);
+  $("bWhistle").onclick = async () => {
+    if(listening || S.trip) return;
+    lastInteract = Date.now();
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ say("Den här telefonen låter inte appen lyssna."); return; }
+    let stream;
+    try{ stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
+    catch(e){ say("Hon kan inte höra dig – mikrofonen nekades."); return; }
+    listening = true; $("listening").classList.add("on");
+    say(S.asleep ? "Pssst… vissla eller klappa för att väcka henne." : "Vissla en melodi – hon lyssnar med sitt ekolod!", 5000);
+    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+    const src = ac.createMediaStreamSource(stream), an = ac.createAnalyser(); an.fftSize = 2048; src.connect(an);
+    const fb = new Float32Array(an.frequencyBinCount), tb = new Float32Array(an.fftSize), hz = ac.sampleRate/an.fftSize;
+    const lo = Math.floor(900/hz), hiB = Math.ceil(4200/hz), bars = $("listening").children;
+    let whistle = 0, claps = 0, quietRms = .02, lastClap = 0; const pitches = [];
+    const t0 = performance.now();
+    await new Promise(done => {
+      (function loop(){
+        an.getFloatFrequencyData(fb); an.getFloatTimeDomainData(tb);
+        let pk=-200, pi=0, m=0, cnt=0;
+        for(let i=3;i<fb.length*.6;i++){ m+=fb[i]; cnt++; if(i>=lo && i<=hiB && fb[i]>pk){ pk=fb[i]; pi=i; } }
+        m/=cnt;
+        let rms=0; for(const v of tb) rms+=v*v; rms=Math.sqrt(rms/tb.length);
+        if(pk > -55 && pk - m > 32){ whistle++; pitches.push(pi*hz); }
+        const now = performance.now();
+        if(rms > Math.max(.18, quietRms*6) && now-lastClap > 180 && !(pk - m > 32)){ claps++; lastClap = now; }
+        quietRms = quietRms*.95 + rms*.05;
+        for(let k=0;k<bars.length;k++) bars[k].style.height = (4 + Math.min(22, rms*120*(0.6+Math.random()*.8)))+"px";
+        if(now - t0 < 5000) requestAnimationFrame(loop); else done();
+      })();
+    });
+    stream.getTracks().forEach(t=>t.stop()); try{ ac.close(); }catch(e){}
+    listening = false; $("listening").classList.remove("on");
+    const spread = pitches.length > 5 ? Math.max(...pitches) - Math.min(...pitches) : 0;
+    if(S.asleep && (whistle > 12 || claps >= 2)){ toggleSleep(whistle>12 ? "vissling" : "klapp"); return; }
+    if(whistle > 12){
+      const melody = spread > 400;
+      S.mood = clamp(S.mood + (melody ? 14 : 8));
+      say(melody ? "En melodi! Hon gör en looping av ren glädje." : "Hon hörde dig och kvittrar tillbaka.");
+      nudge("sociability", 1.5); nudge("playfulness", .6); addBond(2);
+      // remember a few notes of it – she may try to sing it back some night
+      if(pitches.length > 5){ const st = Math.floor(pitches.length/6); S.tune = [0,1,2,3,4,5].map(i => Math.round(pitches[Math.min(pitches.length-1, i*st)])); }
+      diary(melody ? pick(["Du visslade en melodi åt mig. Jag har försökt härma den hela natten. Det blir mest pip.","Din melodi fastnade i mina öron. Den går upp och ner, som när jag flyger."])
+                   : pick(["Du visslade igen. Jag försökte svara, men det kom mest ett litet pip. Jag tror att du förstod ändå.","En vissling i mörkret. Jag vet att det var du."]), "whistle");
+      react("happy", 2200); flash("loop", 1300); floaty("♪", 4); purr(); SFX.trill(); SFX.flap();
+      log(S.name+" lyssnade på din "+(melody?"melodi":"vissling")+".");
+    } else if(claps >= 2){
+      S.mood = clamp(S.mood + 3); say("Klapp klapp! Hon fladdrar till av förvåning."); react("happy",1200); flash("dizzy",1500); SFX.flap(); SFX.chirp(2);
+    } else say("Hon hörde inget särskilt. Prova att vissla lite starkare.");
+    save(); render();
+  };
+
+  // ---------- motion: shake & tilt ----------
+  let motionOn = false, tilt = 0, tiltY = 0, beta = null, shakes = [];
+  function onMotion(ev){
+    const a = ev.accelerationIncludingGravity || ev.acceleration; if(!a) return;
+    const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+    const now = Date.now();
+    if(Math.abs(mag - 9.81) > 14){ shakes = shakes.filter(t => now-t < 1200); if(!shakes.length || now - shakes[shakes.length-1] > 120) shakes.push(now); }
+    if(shakes.length >= 4){ shakes = []; onShake(); }
+  }
+  function onOrient(ev){ if(ev.gamma != null) tilt = Math.max(-35, Math.min(35, ev.gamma)) / 35; if(ev.beta != null) beta = ev.beta; }
+  let lastShake = 0;
+  function onShake(){
+    if(Date.now()-lastShake < 3000 || S.away || gameOn) return; lastShake = Date.now();
+    if(S.trip) return;
+    if(S.asleep) toggleSleep("skakning");
+    else { S.mood = clamp(S.mood-3); say("Ooojoj… allt snurrar!"); flash("dizzy",1500); haptic([40,60,40]); SFX.dizzy(); save(); render(); }
+  }
+  async function enableMotion(){
+    try{
+      if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+        const p = await DeviceMotionEvent.requestPermission(); if(p !== "granted") return false;
+        if(typeof DeviceOrientationEvent.requestPermission === "function") await DeviceOrientationEvent.requestPermission();
+      }
+      if(!motionOn){ window.addEventListener("devicemotion", onMotion); window.addEventListener("deviceorientation", onOrient); motionOn = true; }
+      try{ localStorage.setItem("vesper-motion","1"); }catch(e){}
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---------- location ----------
+  function enableLocation(){
+    return new Promise(res => {
+      if(!navigator.geolocation) return res(false);
+      navigator.geolocation.getCurrentPosition(p => {
+        S.loc = {lat:+p.coords.latitude.toFixed(3), lng:+p.coords.longitude.toFixed(3)}; save(); render(); res(true);
+      }, () => res(false), {maximumAge: 6*3.6e6, timeout: 15000});
+    });
+  }
+
+  // ---------- NFC (Chrome Android) ----------
+  let nfcReader = null, nfcPairing = false;
+  async function startNfc(){
+    if(!("NDEFReader" in window)) return false;
+    try{
+      if(!nfcReader){
+        nfcReader = new NDEFReader(); await nfcReader.scan();
+        nfcReader.onreading = ev => {
+          if(nfcPairing){ S.nfcBed = ev.serialNumber; nfcPairing = false; save(); say("Taggen är nu Vespers säng. Blippa den för att natta eller väcka henne."); haptic([30,50,30]); renderSensors(); log("En NFC-tagg blev Vespers säng."); }
+          else if(S.nfcBed && ev.serialNumber === S.nfcBed) toggleSleep("NFC-sängen");
+          else if(!S.nfcBed) say("Okänd tagg. Para ihop den under Sinnen.");
+        };
+      }
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---------- battery (Chrome) ----------
+  let battery = null;
+  if(navigator.getBattery) navigator.getBattery().then(b => { battery = b; b.onlevelchange = b.onchargingchange = render; render(); }).catch(()=>{});
+
+  // ---------- sensors sheet ----------
+  function renderSensors(){
+    const rows = [];
+    const add = (ic, t, sub, state, btn) => rows.push('<div class="sensor"><span style="font-size:22px">'+ic+'</span><div><b>'+t+' <span class="'+(state?"ok":"no")+'">'+(state?"✓":"")+'</span></b><small>'+sub+'</small></div>'+(btn||"<span></span>")+'</div>');
+    add("📷","Kamera","Visa bilder – hon bedömer skärpa, ljus, färg och komposition. Stjärnor och månen ger bonus.", true);
+    add("🎵","Mikrofon","Vissla en melodi eller klappa. Väcker henne om hon sover.", !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+    const motionSupported = "DeviceMotionEvent" in window;
+    add("📳","Rörelse","Skaka för att väcka henne. Luta telefonen för att styra henne i jakten.", motionOn,
+      motionSupported ? (motionOn ? "" : '<button id="enMotion">Aktivera</button>') : '<small class="no">stöds ej</small>');
+    add("🌍","Plats","Riktig soluppgång och solnedgång där du är."+(S.loc ? "" : " Just nu: Nyköping."), !!S.loc,
+      navigator.geolocation ? '<button id="enLoc">'+(S.loc?"Uppdatera":"Aktivera")+'</button>' : "");
+    const hasNfc = "NDEFReader" in window;
+    add("🛏️","NFC-säng","Para ihop en NFC-tagg, sätt den vid sängen och blippa för att natta henne.", hasNfc && !!S.nfcBed,
+      hasNfc ? '<button id="enNfc">'+(S.nfcBed?"Byt tagg":"Para ihop")+'</button>' : '<small class="no">bara Android</small>');
+    add("💜","Haptik", isIOS ? "Lätta tick när du klappar henne (iPhone-variant)." : "Hon spinner i handen när du klappar henne.", isIOS || !!navigator.vibrate);
+    add("🔋","Batteri","Hon gäspar när telefonen är nästan urladdad.", !!battery, battery ? "" : '<small class="no">stöds ej</small>');
+    const ww = wxNow();
+    add("🌦️","Väder","Riktigt väder där du är styr regn, snö, dimma och åska runt henne. Nu: " + (WX_NAMES[ww.kind]||"–") + (ww.temp!=null?", "+ww.temp+"°":"") + (wxOverride!=="auto"?" (testläge)":""),
+      !!W.live, '<button id="wxTest">' + (wxOverride === "auto" ? "Testa väder" : WX_NAMES[wxOverride] + " →") + '</button>');
+    add("🔊","Ljud","Små pip, tuggande, spinnande, regn, vind och en och annan uggla på natten.", !SFX.muted,
+      '<button id="sndBtn">' + (SFX.muted ? "Slå på" : "Stäng av") + '</button>');
+    $("sensorList").innerHTML = rows.join("");
+    const m = $("enMotion"); if(m) m.onclick = async () => { const ok = await enableMotion(); say(ok ? "Nu känner hon när du rör telefonen." : "Rörelse nekades."); renderSensors(); };
+    const l = $("enLoc"); if(l) l.onclick = async () => { l.textContent="…"; const ok = await enableLocation(); say(ok ? "Nu följer hon solen och vädret där du är." : "Platsen nekades – hon använder Nyköping."); if(ok) fetchWeather(); renderSensors(); };
+    $("wxTest").onclick = () => { wxOverride = WX_CYCLE[(WX_CYCLE.indexOf(wxOverride)+1) % WX_CYCLE.length]; applyEnvironment(); renderSensors(); };
+    $("sndBtn").onclick = () => { SFX.unlock(); SFX.setMuted(!SFX.muted); updateMute(); renderSensors(); };
+    const n = $("enNfc"); if(n) n.onclick = async () => { const ok = await startNfc(); if(ok){ nfcPairing = true; say("Håll en NFC-tagg mot telefonens baksida…", 8000); closeSheets(); } else say("NFC kunde inte startas. Är NFC påslaget i inställningarna?"); };
+  }
+  $("bSensors").onclick = () => { renderSensors(); openSheet("sSensors"); };
+
+  // ---------- moth hunt ----------
+  const MOTH = '<svg viewBox="0 0 40 34"><g class="mw"><path d="M20 17 C10 2 0 6 3 16 C0 26 10 30 20 17 Z" fill="#d8c9a8"/><path d="M20 17 C30 2 40 6 37 16 C40 26 30 30 20 17 Z" fill="#d8c9a8"/><circle cx="10" cy="14" r="2.4" fill="#8a6f4a"/><circle cx="30" cy="14" r="2.4" fill="#8a6f4a"/></g><ellipse cx="20" cy="18" rx="2.4" ry="7" fill="#6b5435"/></svg>';
+  let gameOn = false;
+  $("bPlay").onclick = () => {
+    if(gameOn) return;
+    gameOn = true; let caught = 0, t = 15;
+    const g = $("game"), st = $("stage"), hunter = $("hunter");
+    g.classList.add("on"); $("batWrap").style.opacity = 0;
+    $("gScore").textContent = "0 🦋"; $("gTime").textContent = t;
+    const wk = wxNow().kind, wet = isWet(wk), snowy = wk === "snow";
+    say((motionOn ? "Luta telefonen åt alla håll för att flyga" : "Dra med fingret för att flyga vart du vill") + (wet ? " – regnet gör fjärilarna få!" : snowy ? " – nästan inga fjärilar i snön…" : "!"), 2800);
+    SFX.flap();
+    const W = st.clientWidth, H = st.clientHeight;
+    let hx = W/2, hy = H*.55, vx = 0, vy = 0, frame = 0, target = null;
+    const beta0 = beta;                       // how the phone is held right now = "level"
+    const moths = new Set();
+    const onMove = ev => { const r = st.getBoundingClientRect(); target = {x: ev.clientX - r.left, y: ev.clientY - r.top}; };
+    const onUp = () => { target = null; };
+    st.addEventListener("pointermove", onMove); st.addEventListener("pointerdown", onMove); st.addEventListener("pointerup", onUp);
+    const catchMoth = o => { caught++; $("gScore").textContent = caught+" 🦋"; haptic([12]); SFX.pop(); const p=document.createElement("div"); p.className="float"; p.textContent="✨"; p.style.left=o.x+"px"; p.style.top=o.y+"px"; g.appendChild(p); setTimeout(()=>p.remove(),1400); o.m.remove(); moths.delete(o); };
+    const spawn = setInterval(() => {
+      const m = document.createElement("div"); m.className="moth"; m.innerHTML = MOTH;
+      const side = Math.floor(Math.random()*3);           // left, right or from the top
+      const o = side < 2
+        ? {m, x: side === 0 ? -40 : W, y: 40+Math.random()*(H-110), vx:(side === 0 ? 1 : -1)*(1.2+Math.random()*1.6), vy:(Math.random()-.5)*.8, ph:Math.random()*6}
+        : {m, x: 30+Math.random()*(W-90), y: -30, vx:(Math.random()-.5)*1.2, vy:.8+Math.random()*.9, ph:Math.random()*6};
+      m.addEventListener("pointerdown", ev => { ev.stopPropagation(); catchMoth(o); });
+      moths.add(o); g.appendChild(m);
+    }, snowy ? 1500 : wet ? 1100 : 600);
+    let raf;
+    const loop = () => {
+      frame++;
+      if(target){ vx += (target.x - hx)*.02; vy += (target.y - hy)*.02; }
+      else if(motionOn){
+        vx += tilt*1.1;
+        if(beta != null && beta0 != null) vy += Math.max(-1, Math.min(1, (beta - beta0)/22))*1.1;
+      }
+      vx *= .86; vy *= .86;                                  // a little inertia, like real flight
+      hx = Math.max(40, Math.min(W-40, hx + vx)); hy = Math.max(36, Math.min(H-40, hy + vy + Math.sin(frame/9)*.6));
+      hunter.style.left = (hx-45)+"px"; hunter.style.top = (hy-36)+"px";
+      hunter.style.transform = `rotate(${Math.max(-18, Math.min(18, vx*3))}deg)`;
+      if(frame % 28 === 0) SFX.flap();
+      moths.forEach(o => {
+        o.x += o.vx; o.y += o.vy; o.ph += .08; const yy = o.y + Math.sin(o.ph)*14;
+        o.m.style.left = o.x+"px"; o.m.style.top = yy+"px";
+        if(Math.hypot(o.x+19-hx, yy+16-hy) < 34) catchMoth(o);
+        else if(o.x < -60 || o.x > W+20 || o.y > H+20 || o.y < -60){ o.m.remove(); moths.delete(o); }
+      });
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    const timer = setInterval(() => {
+      t--; $("gTime").textContent = t;
+      if(t > 0) return;
+      clearInterval(timer); clearInterval(spawn); cancelAnimationFrame(raf);
+      st.removeEventListener("pointermove", onMove); st.removeEventListener("pointerdown", onMove); st.removeEventListener("pointerup", onUp);
+      moths.forEach(o=>o.m.remove()); moths.clear(); g.classList.remove("on"); $("batWrap").style.opacity = ""; gameOn = false;
+      S.hunger = clamp(S.hunger + caught*4); S.mood = clamp(S.mood + 8 + caught*2); S.energy = clamp(S.energy - 10);
+      say(caught >= 10 ? caught+" fjärilar! En sann nattens jägare." : caught ? "Fångade "+caught+". Mums!" : "Inga alls… nästa gång!", 4000);
+      if(caught) { react("happy",2000); floaty("🦋", Math.min(caught,5)); SFX.jingle(); } else SFX.sad();
+      log(S.name+" jagade och fångade "+caught+" nattfjärilar.");
+      nudge("playfulness", 1.5); nudge("courage", .5); addBond(1);
+      if(caught >= 12) diary("Jag fångade "+caught+" nattfjärilar i natt! Jag är den snabbaste fladdermusen i hela kyrktornet. Kanske i hela Sverige.", "hunt");
+      else if(caught === 0) diary("Nattfjärilarna var för snabba i natt. Jag låtsas att jag lät dem vinna.", "hunt");
+      save(); render();
+    }, 1000);
+  };
+
+  // mini-Vesper for the hunt: a copy of the SVG without ids (except the gradient)
+  $("hunter").innerHTML = $("batSvg").outerHTML.replace(/ id="(?!bodyG)[^"]*"/g, "").replace(/style="display:none"/g, 'style="display:none" data-x');
+
+  // =====================================================================
+  //  COLLECTION – things she finds on adventures (and now and then at home)
+  // =====================================================================
+  const RARITY = [null, ["Vanlig",62], ["Ovanlig",26], ["Sällsynt",9], ["Mycket sällsynt",2.5], ["Extremt sällsynt",.5]];
+  const ITEMS = {
+    pebble:  {e:"🪨", n:"Glänsande sten",     r:1, d:"Slipad av bäcken i tusen år. Hon putsar den mot pälsen."},
+    acorn:   {e:"🌰", n:"Ekollon",            r:1, d:"Hon har ingen aning om vad man gör med det. Men det är hennes."},
+    leaf:    {e:"🍂", n:"Rött löv",            r:1, d:"Det rödaste lövet i hela skogen, enligt henne."},
+    berry:   {e:"🫐", n:"Blåbär",              r:1, d:"Sparat till sämre tider. Det har redan blivit lite skrynkligt."},
+    shell:   {e:"🐚", n:"Snigelhus",           r:1, d:"Tomt. Hon kontrollerade noga. Två gånger."},
+    feather: {e:"🪶", n:"Blå fjäder",          r:2, d:"Från en nötskrika, tror hon. Den luktar äventyr."},
+    shroom:  {e:"🍄", n:"Glödsvamp",           r:2, d:"Lyser svagt grönt i mörkret. Perfekt nattlampa."},
+    dew:     {e:"💧", n:"Daggpärla",           r:2, d:"En droppe som aldrig torkar. Ingen vet hur."},
+    key:     {e:"🗝️", n:"Gammal nyckel",       r:2, d:"Passar kanske till dörren i ruinerna. Kanske."},
+    crystal: {e:"💎", n:"Månkristall",         r:3, d:"Lättast att hitta under fullmåne. Den är kall som natten."},
+    wing:    {e:"🦋", n:"Nattfjärilsvinge",    r:3, d:"Tunn som papper och mönstrad som en karta."},
+    clover:  {e:"🍀", n:"Fyrklöver",           r:3, d:"Hon vet inte vad tur är, men hon tycker om fyra."},
+    button:  {e:"🔘", n:"Gammal silverknapp",  r:4, d:"Från en rock som någon tappade för länge sedan. Hon har gömt den under kudden."},
+    bell:    {e:"🔔", n:"Liten bjällra",        r:4, d:"Klingar när hon flyger. Hon flyger mycket nu."},
+    meteor:  {e:"☄️", n:"Meteoritbit",         r:5, d:"Föll från himlen en klar natt. Den är fortfarande lite varm."},
+    stardust:{e:"✨", n:"Stjärnstoft",          r:5, d:"Det finns bara ett fåtal korn i hela världen. Ett av dem är hennes."}
+  };
+  // Weighted roll with predictable rules: curiosity tilts toward rarer finds, weather and moon favour
+  // certain items, and a "dry streak" raises the odds of something rare so luck is never unfair for long.
+  function rollItem(ctx){
+    const cur = ctx ? ctx.t.curiosity : tr("curiosity"), dry = S.dry || 0;
+    const list = Object.entries(ITEMS).map(([id, it]) => {
+      let w = RARITY[it.r][1] / Object.values(ITEMS).filter(x => x.r === it.r).length;
+      if(it.r >= 3) w *= 1 + (cur - .5)*.8;
+      if(it.r === 3 || it.r === 4) w *= 1 + Math.min(dry, 8)*.25;     // pity only for rare/very rare, never the legendary ones
+      if(ctx){
+        if(id === "crystal" && ctx.full) w *= 5;
+        if((id === "stardust" || id === "meteor") && ctx.clear && ctx.night) w *= 2;
+        if((id === "shell" || id === "dew") && ctx.wet) w *= 3;
+        if(id === "shroom" && (ctx.fog || ctx.wet)) w *= 2;
+      }
+      return [id, Math.max(.01, w)];
+    });
+    let r = Math.random() * list.reduce((a, b) => a + b[1], 0);
+    for(const [id, w] of list){ if((r -= w) <= 0) return id; }
+    return "pebble";
+  }
+  function giveItem(id){
+    const first = !S.items[id];
+    S.items[id] = (S.items[id] || 0) + 1;
+    if(first && !S.newItems.includes(id)) S.newItems.push(id);
+    if(ITEMS[id].r >= 3) S.dry = 0;
+    return first;
+  }
+  function renderCollection(){
+    const ids = Object.keys(ITEMS), found = ids.filter(id => S.items[id]).length;
+    $("colCount").textContent = found+" av "+ids.length+" fynd. Okända saker visas som frågetecken.";
+    $("items").innerHTML = ids.map(id => {
+      const it = ITEMS[id], has = S.items[id];
+      return has ? '<div class="item r'+it.r+(S.newItems.includes(id)?" new":"")+'" data-id="'+id+'">'+it.e+'<em>'+(has>1?"×"+has:"")+'</em></div>'
+                 : '<div class="item unknown r1" data-id="">?</div>';
+    }).join("");
+    $("itemInfo").textContent = "Tryck på ett fynd för att läsa om det.";
+  }
+  $("items").onclick = e => {
+    const el = e.target.closest(".item"); if(!el) return;
+    const id = el.dataset.id;
+    if(!id){ $("itemInfo").textContent = "Något hon inte har hittat än. Kanske i skogen, kanske under fullmåne…"; return; }
+    const it = ITEMS[id];
+    $("itemInfo").innerHTML = "<b>"+it.e+" "+it.n+"</b> · "+RARITY[it.r][0]+"<br>"+it.d;
+    S.newItems = S.newItems.filter(x => x !== id); el.classList.remove("new"); save(); render();
+  };
+  $("bCollect").onclick = () => { renderCollection(); renderGallery(); setTab("col", "colItems"); openSheet("sCollect"); };
+
+  // =====================================================================
+  //  NIGHT ADVENTURES
+  // =====================================================================
+  const PLACES = {
+    woods: {e:"🌲", name:"Viskande skogen", desc:"Granar, mossa och lysmaskar. Bär, fjädrar och glänsande saker – och en och annan uggla."},
+    lake:  {e:"🌙", name:"Månsjön",          desc:"En sjö som speglar månen. Hon har bara skymtat den på avstånd.", locked:"Hon har inte hittat dit än."},
+    ruins: {e:"🏚️", name:"De glömda ruinerna", desc:"Något gammalt och tyst i skogens utkant.", locked:"Ingen vet vägen dit. Än."}
+  };
+  // Each event is written by Vesper herself. w() decides how likely it is given personality, weather and moon.
+  const EVENTS = [
+    {id:"owl", w:c => .8, text:c => "Jag mötte en gammal uggla i eken. Hon sa ingenting, bara hoade. Jag hoade tillbaka. Det lät inte alls likadant.", fx:() => nudge("courage", .6)},
+    {id:"hedgehog", w:c => .7 + c.t.sociability*.6, text:c => "En igelkott delade sina blåbär med mig. Jag har aldrig ätit något så taggigt-sött.", fx:() => { nudge("sociability", 1); return ["berry"]; }},
+    {id:"path", w:c => .5 + c.t.curiosity, text:c => "Jag hittade en stig mellan två granar som jag aldrig sett förut. Den slingrade sig bort mot något som glittrade.", fx:() => nudge("curiosity", 1.2)},
+    {id:"fireflies", w:c => c.wet || c.snow ? .1 : .6 + c.t.playfulness*.8, text:c => "Lysmaskar dansade över mossan. Jag dansade med. Jag tror att jag vann.", fx:() => nudge("playfulness", 1.2)},
+    {id:"rain", w:c => c.wet ? 2.2 : 0, text:c => "Regnet tvingade mig att vänta under en svamp. Den var lika stor som ett paraply och luktade källare. Mysigt.", fx:() => ["shell"]},
+    {id:"snow", w:c => c.snow ? 2.5 : 0, text:c => "Snön la sig på mina vingar. En liten stund var jag en vit fladdermus. Jag tror att ingen kände igen mig."},
+    {id:"fog", w:c => c.fog ? 2.2 : 0, text:c => "Dimman var så tjock att jag fick lita helt på ekot. Pip – träd. Pip – träd. Pip – du? Nej, en sten.", fx:() => nudge("courage", .8)},
+    {id:"fullmoon", w:c => c.full ? 3 : 0, text:c => "Fullmåne! Skogen fick silverkanter överallt. Någonting kallt och klart glimmade vid en rot.", fx:() => Math.random() < .55 ? ["crystal"] : []},
+    {id:"newmoon", w:c => c.newMoon ? 1.5 : 0, text:c => "Ingen måne alls i natt. Det var så mörkt att till och med jag blev lite osäker. Bara lite."},
+    {id:"star", w:c => c.clear && c.night ? 1.4 : 0, text:c => "Ett stjärnfall! Jag önskade mig något. Det är hemligt, men det handlar om dig.", fx:() => Math.random() < .05 ? ["stardust"] : []},
+    {id:"otherbat", w:c => .25 + c.t.sociability*.5, text:c => pick(["Jag träffade en annan fladdermus. Hon hette Pip och var lite skrytig. Men hon visste var de bästa nattfjärilarna finns.", "Pip var där igen, den skrytiga fladdermusen. Vi flög ikapp. Jag säger inte vem som vann (jag)."]), fx:() => { nudge("sociability", 1.5); }},
+    {id:"foxShy", w:c => c.t.courage < .45 ? 1 : .15, text:c => "En räv tittade på mig från buskarna. Jag gömde mig i en ihålig stubbe tills den gick. Mitt hjärta slog som ett trumsolo.", fx:() => nudge("courage", 1)},
+    {id:"foxBrave", w:c => c.t.courage > .58 ? 1.1 : .1, text:c => "En räv försökte skrämma mig. Jag skrek ultraljud rakt i örat på den. Den sprang. Jag är väldigt farlig.", fx:() => nudge("courage", .8)},
+    {id:"lost", w:c => .45 + c.t.independence*.6, text:c => "Jag flög vilse en stund. Men ekot från kyrktornet visade mig vägen hem. Jag klarade det själv.", fx:() => nudge("independence", 1.2)},
+    {id:"oak", w:c => .6 + (1-c.t.playfulness)*.6, text:c => "Jag vilade i den gamla eken. Den knarrar som om den pratar i sömnen. Jag tror att den drömde om vinter.", fx:() => ["acorn"]},
+    {id:"feast", w:c => c.wet || c.snow ? .15 : .9, text:c => "Det var fullt av nattfjärilar vid skogsbrynet. Jag åt tills jag blev rund som en boll.", fx:c => { c.feast = true; }},
+    {id:"ring", w:c => .5, text:c => c.t.curiosity > .55 ? "Jag hittade en ring av svampar och landade mitt i den. Ingenting hände. Eller… allt kändes lite mer glittrigt efteråt." : "Jag hittade en ring av svampar. Jag vågade inte landa i mitten. Man vet aldrig med svampringar.", fx:c => c.t.curiosity > .55 ? ["shroom"] : []},
+    {id:"echo", w:c => .3 + c.t.playfulness*.7, text:c => "Jag lekte ekolek med en bergvägg. Den svarade alltid. Den är min nya kompis, fast den är lite stel.", fx:() => nudge("playfulness", 1)},
+    {id:"thought", w:c => c.bond >= 15 ? .4 + c.t.sociability*.5 : 0, text:c => "Jag tänkte på dig halva vägen hem. Den andra halvan tänkte jag på blåbär. Sen på dig igen.", fx:() => addBond(1)},
+    {id:"cold", w:c => c.temp != null && c.temp < 1 ? 1.5 : 0, text:c => "Det var så kallt att mitt andetag blev små moln. Jag fluffade upp pälsen tills jag var dubbelt så stor."},
+    {id:"stream", w:c => .5, text:c => "Jag drack ur bäcken och såg mig själv i vattnet. Jag ser faktiskt rätt söt ut. Det trodde jag inte.", fx:() => ["pebble"]},
+    {id:"wind", w:c => (c.wind || 0) > 6 ? 1.6 : 0, text:c => "Vinden var så stark att jag kunde surfa på den. Ända bort till skogsbrynet och tillbaka utan ett enda vingslag."},
+    {id:"badger", w:c => .35, text:c => "En grävling muttrade åt mig. Jag tror att den hade en dålig dag. Jag lämnade ett ekollon utanför dess lya."},
+    {id:"jay", w:c => .35 + c.t.curiosity*.4, text:c => "En nötskrika tappade en fjäder precis framför mig. Jag tror att den gjorde det med flit.", fx:() => ["feather"]},
+    {id:"lake", w:c => c.trips >= 4 && !S.flags.lakeSeen ? 1.8 : 0, text:c => "Bortom skogen glittrade en sjö i månskenet. Jag flög inte ända fram. Nästa gång kanske jag vågar.", fx:() => { S.flags.lakeSeen = 1; }},
+    {id:"door", w:c => c.trips >= 8 && !S.flags.doorSeen ? .25 : 0, text:c => "Längst ut i skogen, bakom en mur av sten, fanns en dörr. Gammal och sned. Jag vågade inte öppna den. Än.", fx:() => { S.flags.doorSeen = 1; }}
+  ];
+  function tripCtx(){
+    const w = wxNow(), p = moonPhase(new Date()), loc = S.loc || NYKOPING;
+    return {t: Object.fromEntries(Object.keys(S.traits).map(k => [k, tr(k)])), wet: isWet(w.kind), snow: w.kind === "snow", fog: w.kind === "fog",
+      clear: /clear|partly/.test(w.kind), full: p > .44 && p < .56, newMoon: p < .04 || p > .96, night: sunAlt(new Date(), loc.lat, loc.lng) < -6,
+      temp: w.temp, wind: w.wind, trips: S.trips, bond: S.bond};
+  }
+  function renderPlaces(){
+    const day = sunNow().day;
+    $("tripIntro").textContent = S.asleep ? "Hon sover just nu. Väck henne först om hon ska iväg."
+      : S.energy < 25 ? "Hon är för trött för en utflykt. Låt henne vila en stund först."
+      : (day ? "Mitt på dagen? Hon blinkar mot ljuset men verkar ändå sugen. " : "") + "En utflykt tar några minuter. Hon kommer hem med fynd och något att berätta – du behöver inte vänta.";
+    const can = !S.asleep && S.energy >= 25 && !S.trip && !S.away;
+    $("places").innerHTML = Object.entries(PLACES).map(([id, p]) => {
+      const locked = !!p.locked;
+      const desc = id === "lake" && S.flags.lakeSeen ? "Hon har sett den glittra bortom skogen. Hon vågar inte flyga dit riktigt än." : id === "ruins" && S.flags.doorSeen ? "Där finns en gammal dörr. Den är stängd." : p.desc;
+      return '<div class="place'+(locked?" locked":"")+'"><div class="ic">'+p.e+'</div><div><b>'+p.name+'</b><small>'+desc+(locked?"<br><i>"+p.locked+"</i>":"")+'</small></div>'
+        + (locked ? "" : '<button data-go="'+id+'"'+(can?"":" disabled")+'>Flyg dit</button>') + '</div>';
+    }).join("");
+  }
+  $("places").onclick = e => { const b = e.target.closest("[data-go]"); if(b && !b.disabled) startTrip(b.dataset.go); };
+  $("bTrip").onclick = () => {
+    if(S.trip){ say(S.name+" är fortfarande ute. Hon kommer snart!"); return; }
+    renderPlaces(); openSheet("sTrip");
+  };
+  function startTrip(place){
+    lastInteract = Date.now();
+    const mins = 3 + Math.random()*2;
+    S.trip = {place, start: Date.now(), until: Date.now() + mins*60e3};
+    S.energy = clamp(S.energy - 10);
+    closeSheets();
+    say(S.traits.courage < 38 ? "Hon tittar på dig en sista gång… och flyger iväg." : S.traits.playfulness > 62 ? "Wiii! Hon gör en looping och försvinner mellan träden." : "Hon flaxar iväg mot skogen.", 3500);
+    SFX.flap(); setTimeout(() => SFX.flap(), 250); haptic([20,40,20]);
+    nudge("courage", 1); nudge("independence", .6);
+    log(S.name+" flög ut till "+PLACES[place].name.toLowerCase()+".");
+    save(); render();
+  }
+  function finishTrip(){
+    const trip = S.trip; if(!trip) return;
+    const c = tripCtx();
+    // pick 2 (or 3 for a very curious bat) different events, avoiding the ones from last time
+    const n = c.t.curiosity > .65 ? 3 : 2, chosen = [];
+    let pool = EVENTS.filter(ev => !S.lastEvents.includes(ev.id)).map(ev => [ev, ev.w(c)]).filter(x => x[1] > 0);
+    for(let i=0; i<n && pool.length; i++){
+      let r = Math.random() * pool.reduce((a, b) => a + b[1], 0), k = 0;
+      for(; k < pool.length-1; k++){ if((r -= pool[k][1]) <= 0) break; }
+      chosen.push(pool[k][0]); pool.splice(k, 1);
+    }
+    const lines = [pick(["I natt flög jag till "+PLACES[trip.place].name.toLowerCase()+".", "Utflykt till "+PLACES[trip.place].name.toLowerCase()+"!"])], found = [];
+    for(const ev of chosen){
+      lines.push(ev.text(c));
+      const extra = ev.fx && ev.fx(c);
+      if(Array.isArray(extra)) found.push(...extra);
+    }
+    const rolls = c.snow ? 1 : 1 + (Math.random() < .35 + c.t.curiosity*.35 ? 1 : 0);
+    for(let i=0;i<rolls;i++) found.push(rollItem(c));
+    const firsts = found.filter(id => giveItem(id));
+    if(!found.some(id => ITEMS[id].r >= 3)) S.dry = (S.dry || 0) + 1;
+    const names = found.map(id => ITEMS[id].n.toLowerCase());
+    const uniq = [...new Set(names)];
+    lines.push(uniq.length ? "Jag tog med mig hem: " + (uniq.length > 1 ? uniq.slice(0,-1).join(", ")+" och "+uniq[uniq.length-1] : uniq[0]) + "." + (firsts.length ? " " + pick(["Sådant har jag aldrig hittat förut!","Det ska få en fin plats i grottan.","Det är vår hemlighet."]) : "") : "");
+    // needs: an adventure is tiring but makes her happy; a moth feast fills her up
+    S.energy = clamp(S.energy - 12); S.mood = clamp(S.mood + 12); S.hunger = clamp(S.hunger + (c.feast ? 30 : -8));
+    S.trips++; S.lastEvents = chosen.map(e => e.id); S.trip = null; addBond(2);
+    const text = lines.filter(Boolean).join(" ");
+    diary(text);
+    S.pendingHome = {place: trip.place, text, found};
+    log(S.name+" kom hem från "+PLACES[trip.place].name.toLowerCase()+" med "+found.length+" fynd.");
+    if(!document.hidden) setTimeout(showHome, 600);
+  }
+  function showHome(){
+    const h = S.pendingHome; if(!h) return;
+    S.pendingHome = null; save();
+    const best = h.found.slice().sort((a,b) => ITEMS[b].r - ITEMS[a].r)[0];
+    $("homeTitle").textContent = "Natt "+nightNow()+" · "+PLACES[h.place].name;
+    $("homeStory").textContent = h.text;
+    $("homeFinds").innerHTML = h.found.map(id => '<span class="r'+ITEMS[id].r+'">'+ITEMS[id].e+" "+ITEMS[id].n+'</span>').join("");
+    openSheet("sHome");
+    say(best && ITEMS[best].r >= 3 ? "Du är tillbaka! Titta vad jag hittade!" : "Jag är hemma! Jag har massor att berätta.", 4500);
+    react("happy", 2500); floaty(best ? ITEMS[best].e : "🖤", 3); SFX.trill(); setTimeout(() => SFX.sparkle(), 500); haptic([20,50,20]);
+    render();
+  }
+
+  // =====================================================================
+  //  LIVING BEHAVIOUR – she does things on her own
+  // =====================================================================
+  let lastInteract = Date.now();
+  const sheetOpen = () => !!document.querySelector(".sheet.on");
+  function freeToAct(){
+    return !S.asleep && !S.away && !S.trip && !gameOn && !listening && !document.hidden && !sheetOpen()
+      && Date.now() - lastInteract > 5000 && Date.now() > reactUntil;
+  }
+  function spawn(cls, html, style, ms){
+    const el = document.createElement("div"); el.className = cls; if(html) el.textContent = html;
+    Object.assign(el.style, style || {}); $("fx").appendChild(el); setTimeout(() => el.remove(), ms); return el;
+  }
+  function thoughts(){
+    const w = wxNow(), day = sunNow().day, p = moonPhase(new Date()), t = [];
+    t.push("*lyssnar på något du inte kan höra*", "*räknar stjärnor… tappar räkningen*", "*funderar på nattfjärilar*");
+    if(day) t.push("*kisar surt mot dagsljuset*", "Är det inte natt snart?");
+    else t.push("*njuter av mörkret*");
+    if(p > .44 && p < .56) t.push("Fullmåne… det känns som att något kan hända i natt.");
+    if(isWet(w.kind)) t.push("*lyssnar på regnet mot taket*");
+    if(w.kind === "snow") t.push("*försöker fånga en snöflinga med tungan*");
+    if(S.hunger < 40) t.push("*kurrar lite i magen*");
+    if(S.traits.curiosity > 62) t.push("Vad finns bakom skogen, tror du?", "*undersöker en spricka i väggen*");
+    if(S.traits.independence > 62) t.push("*har sina egna planer*");
+    if(S.traits.sociability > 62) t.push("*tittar om du fortfarande är kvar*");
+    if(S.flags.doorSeen) t.push("Den där dörren i skogen… vad finns bakom den?");
+    if(S.trips === 0) t.push("*tittar längtansfullt mot skogen*");
+    return t;
+  }
+  const BEHAVIOURS = [
+    {id:"stretch", w:() => .9 + (S.energy < 50 ? .6 : 0), run(){ flash("stretch", 1900); SFX.flap(); say("*sträcker på vingarna*", 2200); }},
+    {id:"groom", w:() => .9, run(){ flash("groom", 2300); say(pick(["*putsar pälsen noggrant*","*tvättar örat med vingen*"]), 2400); }},
+    {id:"peek", w:() => .4 + tr("sociability")*.9, run(){
+      flash("peek", 3300); const r = $("stage").getBoundingClientRect(); lookAt(r.left + r.width/2, r.bottom + 200);
+      if(Math.random() < .5) say(pick(["…","*tittar rakt på dig*","Hej.","Du har jättestora ögon."]), 2600); }},
+    {id:"hide", w:() => (1 - tr("courage"))*1.3 + (wxNow().kind === "thunder" ? 2 : 0), run(){
+      flash("hide", 4300); say("*gömmer sig bakom gravstenen*", 2400); setTimeout(() => { if(!S.asleep) say("…är det säkert nu?", 1800); }, 3000); }},
+    {id:"hop", w:() => tr("playfulness")*1.2, run(){ flash("hop", 950); SFX.chirp(2); }},
+    {id:"loop", w:() => S.energy > 50 ? tr("playfulness")*.8 : 0, run(){ flash("loop", 1300); SFX.flap(); if(Math.random() < .4) say("Wiii!", 1500); }},
+    {id:"firefly", w:() => !sunNow().day && !isWet(wxNow().kind) && wxNow().kind !== "snow" ? .4 + tr("playfulness")*.7 + tr("curiosity")*.4 : 0, run(){
+      spawn("firefly", "", {}, 3500); flash("chase", 3500); say("*jagar en lysmask*", 2600);
+      setTimeout(() => { if(Math.random() < .5){ say("Mums.", 1500); S.hunger = clamp(S.hunger + 3); SFX.munch(); } else say("Den kom undan…", 1500); }, 3400); }},
+    {id:"doze", w:() => S.energy < 45 ? 1.6 : sunNow().day ? .6 : 0, run(){
+      flash("nod", 3100); react("blink", 2800); say("*nickar till…*", 2500);
+      if(S.energy < 20 && Math.random() < .5) setTimeout(() => {
+        if(S.asleep || S.trip) return;
+        S.asleep = true; say("…zzz. Hon somnade mitt i allt.", 3500); log(S.name+" somnade av sig själv.");
+        diary("Jag somnade mitt i… vad var det jag gjorde? Något viktigt. Eller inte.", "doze"); save(); render(); }, 2900); }},
+    {id:"yawn", w:() => S.energy < 55 || sunNow().day ? .7 : .15, run(){ react("blink", 1300); SFX.yawn(); say("*gäspar så att huggtänderna syns*", 2200); }},
+    {id:"glint", w:() => .25 + tr("curiosity")*.6, run(){
+      const left = Math.random() < .5, x = left ? 15 + Math.random()*20 : 65 + Math.random()*20;
+      spawn("glint", "✦", {left: x+"%"}, 2500);
+      const r = $("stage").getBoundingClientRect(); lookAt(r.left + r.width*x/100, r.bottom); SFX.sparkle();
+      say("Något glimmar där nere…", 2400);
+      if(Math.random() < .07){
+        setTimeout(() => {
+          const id = Math.random() < .8 ? pick(["pebble","acorn","leaf","shell"]) : pick(["feather","dew","key"]);
+          const first = giveItem(id); say("Hon hittade "+ITEMS[id].n.toLowerCase()+" i grottan! "+ITEMS[id].e, 3500); floaty(ITEMS[id].e, 2);
+          if(first) diary("Jag hittade "+ITEMS[id].n.toLowerCase()+" bakom den gamla stenen här hemma. Jag har gömt det under min kudde. Det är vår hemlighet.");
+          save(); render();
+        }, 2000);
+      } }},
+    {id:"tune", w:() => S.tune.length ? .3 + tr("sociability")*.5 : 0, run(){
+      SFX.tune(S.tune); floaty("♪", 3); say("*försöker vissla din melodi*", 2800);
+      diary("Jag kan nästan din melodi nu. Lyssna! … Nästan.", "ever:tune"); save(); }},
+    {id:"hang", w:() => .2 + tr("independence")*.6, run(){ flash("wobble", 1400); say("*gör sin egen grej*", 1800); }},
+    {id:"think", w:() => .9, run(){ say(pick(thoughts()), 3600); }}
+  ];
+  let lastBehaviour = "";
+  function behave(){
+    const list = BEHAVIOURS.filter(b => b.id !== lastBehaviour).map(b => [b, Math.max(0, b.w())]).filter(x => x[1] > 0);
+    let r = Math.random() * list.reduce((a, b) => a + b[1], 0);
+    for(const [b, w] of list){ if((r -= w) <= 0){ lastBehaviour = b.id; b.run(); return; } }
+  }
+  (function behaviourLoop(){
+    const pace = .7 + tr("playfulness")*.6;      // playful bats get up to things more often
+    setTimeout(() => { if(freeToAct()) behave(); behaviourLoop(); }, (9000 + Math.random()*12000) / pace);
+  })();
+  document.addEventListener("pointerdown", () => { lastInteract = Date.now(); });
+
+  // Greeting when you come back – depends on who she has become.
+  function greet(awayMs){
+    if(S.pendingHome){ setTimeout(showHome, 700); return; }
+    if(S.trip || S.away || awayMs < 10*60e3) return;
+    const nights = Math.floor(awayMs / 864e5);
+    if(nights >= 2) diary("Du var borta i "+nights+" nätter. Jag räknade stjärnor medan jag väntade. Jag är inte arg. Bara glad nu.", "ever:gone-"+nightNow());
+    if(S.asleep){ if(awayMs > 3.6e6) say(sunNow().day ? "Hon sover djupt. Fladdermöss är vakna på natten." : "Hon sover. Hon vaknar när hon är utvilad.", 4000); return; }
+    setTimeout(() => {
+      if(S.traits.courage < 38){ flash("hide", 4300); setTimeout(() => { say("…åh! Det är ju du!", 2500); react("happy", 1500); SFX.chirp(2); }, 3400); }
+      else if(S.traits.sociability > 62){ flash("peek", 3300); say(nights >= 1 ? "Du är tillbaka! Jag har saknat dig. 💜" : "Du är tillbaka! 💜", 3500); react("happy", 2000); floaty("💜", 3); SFX.trill(); }
+      else if(S.traits.playfulness > 62){ flash("loop", 1300); say("Hej hej hej! Ska vi leka?", 3000); react("happy", 1500); SFX.chirp(3); }
+      else if(S.traits.independence > 62){ say("*höjer ett ögonbryn* Jaså. Du.", 3000); SFX.peep(); }
+      else { flash("hop", 950); say(pick(["Hej! Där är du ju.","Hej! Jag har väntat."]), 3000); react("happy", 1500); SFX.chirp(2); }
+    }, 900);
+  }
+
+  // ---------- tabs ----------
+  function setTab(group, id){
+    const bar = document.querySelector('[data-tabs="'+group+'"]');
+    bar.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tab === id));
+    bar.querySelectorAll("button").forEach(b => $(b.dataset.tab).classList.toggle("on", b.dataset.tab === id));
+  }
+  document.querySelectorAll("[data-tabs]").forEach(bar => bar.addEventListener("click", e => {
+    const b = e.target.closest("button[data-tab]"); if(b) setTab(bar.dataset.tabs, b.dataset.tab);
+  }));
+
+  // ---------- diary view ----------
+  const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+  function renderDiary(){
+    $("entries").innerHTML = S.diary.length ? S.diary.map(d => '<div class="entry"><h4>Natt '+d.n+'<small>'
+      + new Date(d.t).toLocaleString("sv-SE",{weekday:"short", hour:"2-digit", minute:"2-digit"})+'</small></h4><div>'+esc(d.text)+'</div></div>').join("")
+      : '<p>Inga anteckningar än. Hon skriver när något händer.</p>';
+    const lvl = bondLevel(), next = BOND[lvl+1], cur = BOND[lvl];
+    const pct = next ? Math.round((S.bond - cur[0]) / (next[0] - cur[0]) * 100) : 100;
+    const found = Object.keys(ITEMS).filter(id => S.items[id]).length;
+    $("about").innerHTML = '<p style="color:var(--ink);font-size:16px;margin-top:0">'+esc(personalityText())+'</p>'
+      + '<div class="stat" style="border:none;padding-bottom:0"><span>Er relation</span><b>'+BOND[lvl][1]+'</b></div>'
+      + '<div class="bond"><div style="width:'+pct+'%"></div></div>'
+      + '<div class="stat"><span>Nätter tillsammans</span><b>'+nightNow()+'</b></div>'
+      + '<div class="stat"><span>Utflykter</span><b>'+S.trips+'</b></div>'
+      + '<div class="stat"><span>Fynd</span><b>'+found+' / '+Object.keys(ITEMS).length+'</b></div>'
+      + '<div class="stat"><span>Bilder hon fått se</span><b>'+gallery.length+(gallery.length >= 12 ? "+" : "")+'</b></div>'
+      + '<p style="margin-top:12px">Hennes personlighet formas av hur ni umgås: visslingar, jakter, bilder, utflykter och sömn. Det finns inget rätt sätt – bara olika Vesper.</p>';
+  }
+
+  // ---------- sheets ----------
+  function openSheet(id){ document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("on")); $(id).classList.add("on"); }
+  function closeSheets(){ document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("on")); }
+  document.querySelectorAll(".sheet").forEach(s => s.addEventListener("click", e => { if(e.target === s || e.target.hasAttribute("data-close")) closeSheets(); }));
+
+  const NAMES = ["Vesper","Morticia","Skugga","Nyx","Lilith","Bläck","Korpi","Natt"];
+  $("sugg").innerHTML = NAMES.map(n => '<button data-n="'+n+'">'+n+'</button>').join("");
+  $("sugg").onclick = e => { const n = e.target.dataset.n; if(n) $("nameIn").value = n; };
+  $("name").onclick = () => { $("nameIn").value = S.name; openSheet("sName"); };
+  $("nOk").onclick = () => { const v = $("nameIn").value.trim(); if(v && v !== S.name){ log("Fick namnet "+v+"."); S.name = v; } closeSheets(); save(); render(); };
+
+  $("bDiary").onclick = () => {
+    $("log").innerHTML = S.log.map(l => "<div>"+l.replace(/</g,"&lt;")+"</div>").join("") || "<div>Inget har hänt än.</div>";
+    renderDiary(); setTab("diary", "dEntries"); openSheet("sDiary");
+  };
+  let resetArm = 0;
+  $("dReset").onclick = () => {
+    if(Date.now()-resetArm > 3000){ resetArm = Date.now(); $("dReset").textContent = "Tryck igen för att börja om"; setTimeout(()=>$("dReset").textContent="🪦 Börja om",3000); return; }
+    const keep = {loc:S.loc, nfcBed:S.nfcBed}; S = Object.assign(fresh(), keep); log("En ny liten fladdermus kläcktes.");
+    diary("Jag kläcktes i kyrktornet i natt. Allt är stort och mörkt och spännande. Och där är du."); save(); closeSheets(); render(); say("Hej! Jag är ny här.");
+  };
+
+  // ---------- install hint ----------
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; showInstall(); });
+  function showInstall(){
+    if(standalone) return;
+    const b = $("install");
+    if(deferredPrompt){ b.innerHTML = 'Lägg Vesper på hemskärmen så bor hon i telefonen. <button id="instBtn" style="display:inline-flex;margin-top:6px;padding:6px 12px">Installera</button>';
+      b.classList.add("on"); $("instBtn").onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; b.classList.remove("on"); }; }
+    else if(isIOS){ b.textContent = "Tips: tryck på Dela → ”Lägg till på hemskärmen” så bor Vesper i telefonen."; b.classList.add("on"); }
+  }
+  showInstall();
+  if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+  // ---------- boot ----------
+  let st = ""; for(let i=0;i<40;i++) st += '<div class="star" style="left:'+(Math.random()*100)+'%;top:'+(Math.random()*60)+'%;animation-delay:'+(Math.random()*3)+'s;opacity:'+(.3+Math.random()*.7)+'"></div>';
+  $("stars").innerHTML = st;
+  // Android needs no permission for motion; turn it on silently if it worked before or isn't gated
+  try{ if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission !== "function") enableMotion();
+       else if(localStorage.getItem("vesper-motion")) document.addEventListener("click", function once(){ enableMotion(); document.removeEventListener("click", once); }); }catch(e){}
+  if(S.nfcBed && navigator.permissions) navigator.permissions.query({name:"nfc"}).then(p => { if(p.state === "granted") startNfc(); }).catch(()=>{});
+  if(S.loc && navigator.permissions) navigator.permissions.query({name:"geolocation"}).then(p => { if(p.state === "granted") enableLocation(); }).catch(()=>{});
+  const firstRun = !S.log.length;
+  if(firstRun){ log("En liten fladdermus kläcktes i kyrktornet."); diary("Jag kläcktes i kyrktornet i natt. Allt är stort och mörkt och spännande. Och där är du."); say("Hej! Tryck på mig för att klappa. Under ⚙️ ser du vad jag kan känna.", 6000); }
+  function updateMute(){ $("mute").textContent = SFX.muted ? "🔇" : "🔊"; }
+  $("mute").onclick = e => { e.stopPropagation(); SFX.unlock(); SFX.setMuted(!SFX.muted); updateMute(); if(!SFX.muted) SFX.chirp(2); };
+  updateMute();
+  const awayMs = Date.now() - (S.seenAt || S.last);
+  tick(); animate(); applyEnvironment();
+  if(!firstRun) greet(awayMs);
+  S.seenAt = Date.now(); save();
+  setInterval(() => { if(!document.hidden){ S.seenAt = Date.now(); } }, 30e3);
+  if(Date.now() - (W.at||0) > 15*60e3) fetchWeather();
+  setInterval(tick, 5000);
+  setInterval(applyEnvironment, 60e3);
+  setInterval(() => { if(!document.hidden) fetchWeather(); }, 15*60e3);
+  // now and then she chirps by herself when she is awake and you are looking
+  (function chatter(){ setTimeout(() => { if(!document.hidden && !S.asleep && !S.away && !gameOn) SFX.chirp(1 + Math.floor(Math.random()*3)); chatter(); }, 25000 + Math.random()*50000); })();
+  document.addEventListener("visibilitychange", () => {
+    if(!document.hidden){ const gone = Date.now() - (S.seenAt || S.last); tick(); applyEnvironment(); greet(gone); S.seenAt = Date.now(); save(); if(Date.now() - (W.at||0) > 15*60e3) fetchWeather(); }
+    else { S.seenAt = Date.now(); save(); SFX.ambient("clear", 0, false); } });
+})();
+</script>
+</body>
+</html>
