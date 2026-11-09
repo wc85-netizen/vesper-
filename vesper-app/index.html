@@ -500,7 +500,23 @@
   const SFX = (() => {
     let ac = null, master = null, muted = false, noiseBuf = null, amb = null;
     try{ muted = localStorage.getItem("vesper-muted") === "1"; }catch(e){}
+    // iPhone: ask for the "playback" audio session so the sounds are heard even with the ringer
+    // switch on silent, and so they don't drop to the earpiece after the microphone has been used.
+    function iosSession(){
+      try{ if(navigator.audioSession) navigator.audioSession.type = "playback"; }catch(e){}
+    }
+    let silentEl = null;
+    function iosSilentKick(){
+      // Older iOS without navigator.audioSession: playing a (silent) media element switches the session.
+      if(!isIOS || navigator.audioSession || silentEl) return;
+      try{
+        silentEl = document.createElement("audio"); silentEl.setAttribute("playsinline", ""); silentEl.loop = true;
+        silentEl.src = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+        silentEl.play().catch(() => { silentEl = null; });
+      }catch(e){ silentEl = null; }
+    }
     function unlock(){
+      iosSession(); iosSilentKick();
       if(!ac){
         const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null;
         ac = new AC(); master = ac.createGain(); master.gain.value = muted ? 0 : .8; master.connect(ac.destination);
@@ -508,7 +524,8 @@
         const d = noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
         buildAmbient(); setTimeout(applyEnvironment, 50);
       }
-      if(ac.state === "suspended") ac.resume();
+      // iOS also uses the state "interrupted" (after a call, the lock screen or switching apps)
+      if(ac.state !== "running") ac.resume().catch(() => {});
       return ac;
     }
     const ready = () => ac && !muted && ac.state === "running";
@@ -573,7 +590,9 @@
     }
     return S;
   })();
-  document.addEventListener("pointerdown", () => SFX.unlock(), {capture:true});
+  // iOS Safari only counts some events as permission to start sound, so listen to all of them
+  for(const ev of ["pointerdown", "touchend", "click", "keydown"]) document.addEventListener(ev, () => SFX.unlock(), {capture:true, passive:true});
+  document.addEventListener("visibilitychange", () => { if(!document.hidden) SFX.unlock(); });
   const purr = () => { haptic([12,40,12,40,12,40,12,40,12]); SFX.purr(); };
 
   // ---------- face ----------
@@ -1106,6 +1125,7 @@
       })();
     });
     stream.getTracks().forEach(t=>t.stop()); try{ ac.close(); }catch(e){}
+    SFX.unlock();                     // back to normal playback after the microphone (iPhone lowers/mutes it otherwise)
     listening = false; $("listening").classList.remove("on");
     const spread = pitches.length > 5 ? Math.max(...pitches) - Math.min(...pitches) : 0;
     if(S.asleep && (whistle > 12 || claps >= 2)){ toggleSleep(whistle>12 ? "vissling" : "klapp"); return; }
