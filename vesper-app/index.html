@@ -133,9 +133,22 @@
   @keyframes mf{to{transform:scaleX(.55)}}
   #hunter{position:absolute;width:90px;height:72px;pointer-events:none}
   #hunter .wing{animation-duration:.25s}
-  .listening{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:none;gap:3px;align-items:flex-end;height:26px}
-  .listening.on{display:flex}
-  .listening span{width:5px;background:var(--lit);border-radius:2px;transition:height .08s}
+  /* melody & echo game */
+  .song{position:absolute;inset:0;display:none;pointer-events:none}
+  .song.on{display:block}
+  .songbar{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:auto}
+  .songbar button{flex-direction:row;font-size:13px;padding:6px 11px;border-radius:20px;background:rgba(23,17,31,.85)}
+  .songbar span{color:var(--gold);font-weight:700;font-size:15px;letter-spacing:2px;flex:1;text-align:center}
+  .keys{position:absolute;left:10px;right:10px;bottom:10px;display:grid;grid-template-columns:repeat(5,1fr);gap:7px;pointer-events:auto}
+  .keys button{height:50px;border-radius:14px;padding:0;border:2px solid rgba(255,255,255,.12);opacity:.85;transition:transform .08s,opacity .12s,box-shadow .12s;touch-action:manipulation}
+  .keys .k0{background:#7c5ea8} .keys .k1{background:#b0577e} .keys .k2{background:#c9a35a} .keys .k3{background:#5f9a86} .keys .k4{background:#5b78b5}
+  .keys button.lit{opacity:1;transform:scale(1.08);box-shadow:0 0 18px rgba(255,255,255,.45)}
+  .keys.wait button{filter:saturate(.6)}
+  .singing .bubble{bottom:70px}
+  .singing .grave{opacity:0;transition:opacity .4s}
+  .singing #batWrap{top:44%}
+  .pulse{animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 4px rgba(217,178,106,.5);border-color:var(--gold)}}
 
   /* ---------- living behaviours ---------- */
   .stretch .wingL{animation:spreadL 1.8s ease-in-out}
@@ -271,7 +284,10 @@
     <div id="flashLayer"></div>
     <div class="zzz">z</div>
     <div class="fx" id="fx"></div>
-    <div class="listening" id="listening"></div>
+    <div class="song" id="song">
+      <div class="songbar"><button id="songMode">🦇 Ekolek</button><span id="songInfo"></span><button id="songClose">Klar ✕</button></div>
+      <div class="keys" id="keys"></div>
+    </div>
     <div class="bubble" id="bubble"></div>
     <div class="game" id="game">
       <div id="hunter"></div>
@@ -288,7 +304,7 @@
   <div class="actions">
     <button id="bFeed"><i>🍇</i>Mata</button>
     <button id="bPlay"><i>🦋</i>Jaga</button>
-    <button id="bWhistle"><i>🎵</i>Vissla</button>
+    <button id="bSong"><i>🎶</i>Sjung</button>
     <button id="bSleep"><i>🌙</i>Sov</button>
     <button id="bTrip"><i>🌲</i>Utflykt</button>
     <button id="bPhoto"><i>📷</i>Visa bild</button>
@@ -385,7 +401,7 @@
       // v2: personality, bond, diary, adventures, collection
       traits:{curiosity:50, courage:50, playfulness:50, sociability:50, independence:50},
       bond:0, diary:[], once:{}, flags:{}, trip:null, pendingHome:null, items:{}, newItems:[],
-      trips:0, dry:0, lastEvents:[], tune:[], seenAt:now};
+      trips:0, dry:0, lastEvents:[], tune:[], songs:[], echoBest:0, seenAt:now};
   }
   // Save-file versioning: old saves keep their Vesper, new fields get defaults.
   function migrate(s){
@@ -393,7 +409,7 @@
     s = Object.assign(f, s);
     s.traits = Object.assign(fresh().traits, s.traits || {});
     for(const k of ["once","flags","items"]) if(!s[k] || typeof s[k] !== "object") s[k] = {};
-    for(const k of ["diary","newItems","lastEvents","tune","log","photos"]) if(!Array.isArray(s[k])) s[k] = [];
+    for(const k of ["diary","newItems","lastEvents","tune","songs","log","photos"]) if(!Array.isArray(s[k])) s[k] = [];
     if(oldV < 2){
       s.v = 2; s.seenAt = s.last || Date.now();
       s.diary.push({t: Date.now(), n: nightNo(Date.now(), s.born), text: "Någonting har förändrats. Jag känner mig mer… jag. Jag tror att jag ska börja skriva ner saker nu."});
@@ -441,7 +457,7 @@
   const MILESTONES = {
     curiosity:   ["Jag vill veta vad som finns bakom varenda gren. Är det konstigt? Jag tror att jag har blivit nyfiken.", "Jag tittar hellre två gånger innan jag flyger någonstans. Det är klokt, tycker jag."],
     courage:     ["I natt var jag inte rädd för någonting. Nästan ingenting. Jag är modigare nu.", "Jag gillar att gömma mig. Det är tryggt bakom gravstenen."],
-    playfulness: ["Allt är en lek! Löv, droppar, din vissling. Jag kan inte sitta still.", "Jag tycker om lugna nätter. Bara hänga och lyssna."],
+    playfulness: ["Allt är en lek! Löv, droppar, dina melodier. Jag kan inte sitta still.", "Jag tycker om lugna nätter. Bara hänga och lyssna."],
     sociability: ["Jag tycker om när du är här. Det är tystare när du inte är det.", "Jag behöver inte så mycket sällskap. Men lite. Ibland."],
     independence:["Jag klarar mig själv, vet du. Men det är fint att du tittar till mig.", "Jag vill helst vara nära dig. Hela tiden. Är det okej?"]
   };
@@ -460,7 +476,7 @@
   function addBond(x){
     const before = bondLevel(); S.bond += x; const after = bondLevel();
     if(after > before){
-      const lines = ["", "Jag känner igen dina steg nu. Du är den som visslar.", "Jag tror att vi är vänner. Riktiga.",
+      const lines = ["", "Jag känner igen dina steg nu. Du är den som spelar melodier.", "Jag tror att vi är vänner. Riktiga.",
         "När du är borta sparar jag saker att berätta.", "Du är min bästa vän. Säg inte det till ugglan.", "Jag vet inte hur jag ska säga det. Men du är mitt hem."];
       diary(lines[after], "ever:bond-"+after); say("💜 "+BOND[after][1]+"!", 4000); floaty("💜", 4);
     }
@@ -569,7 +585,11 @@
       thunder(){ if(!ready()) return; noise(2.8, "lowpass", 140, .8, .7, 0, 60); noise(.5, "lowpass", 400, .8, .35); },
       owl(){ tone("sine", 410, 370, .35, .07); tone("sine", 400, 350, .6, .07, .5, 4); },
       // her squeaky attempt at a tune you once whistled (pitches in Hz)
-      tune(p){ p.forEach((f, i) => tone("sine", f*1.15, f*1.2, .13, .1, i*.17, 6)); },
+      tune(p){ p.forEach((f, i) => S.batNote(f, i*.3)); },
+      // her voice: a squeaky chirp an octave above the bell
+      batNote(f, delay=0){ const v = f < 1200 ? f*2 : f; tone("sine", v*.97, v*1.04, .16, .11, delay, 9); tone("triangle", v*2, v*2.05, .05, .03, delay); },
+      // your bells: soft, with a little shimmer
+      bell(f){ tone("triangle", f, f, .55, .14); tone("sine", f*2.01, f*2, .35, .05); tone("sine", f*3, f*3, .18, .02); },
       sparkle(){ [1568,2093,2637].forEach((f,i) => tone("sine", f, f*1.02, .12, .07, i*.09)); },
       setMuted(m){ muted = m; try{ localStorage.setItem("vesper-muted", m ? "1" : "0"); }catch(e){} if(master) master.gain.setTargetAtTime(m ? 0 : .8, ac.currentTime, .05); },
       get muted(){ return muted; }, unlock,
@@ -905,7 +925,7 @@
     $("bFeed").disabled = off || S.asleep;
     $("bPlay").disabled = off || S.asleep || S.energy < 15;
     $("bPhoto").disabled = off;
-    $("bWhistle").disabled = off;
+    $("bSong").disabled = off;
     $("bSleep").disabled = off;
     $("bSleep").innerHTML = S.asleep ? "<i>☀️</i>Väck" : "<i>🌙</i>Sov";
     if(S.trip){
@@ -1091,60 +1111,141 @@
       : '<p style="grid-column:1/-1">Inga bilder än. Visa henne något vackert!</p>';
   }
 
-  // ---------- microphone: whistle & clap ----------
-  let listening = false;
-  $("listening").innerHTML = "<span></span>".repeat(9);
-  $("bWhistle").onclick = async () => {
-    if(listening || S.trip) return;
-    lastInteract = Date.now();
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ say("Den här telefonen låter inte appen lyssna."); return; }
-    let stream;
-    try{ stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
-    catch(e){ say("Hon kan inte höra dig – mikrofonen nekades."); return; }
-    listening = true; $("listening").classList.add("on");
-    say(S.asleep ? "Pssst… vissla eller klappa för att väcka henne." : "Vissla en melodi – hon lyssnar med sitt ekolod!", 5000);
-    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
-    const src = ac.createMediaStreamSource(stream), an = ac.createAnalyser(); an.fftSize = 2048; src.connect(an);
-    const fb = new Float32Array(an.frequencyBinCount), tb = new Float32Array(an.fftSize), hz = ac.sampleRate/an.fftSize;
-    const lo = Math.floor(900/hz), hiB = Math.ceil(4200/hz), bars = $("listening").children;
-    let whistle = 0, claps = 0, quietRms = .02, lastClap = 0; const pitches = [];
-    const t0 = performance.now();
-    await new Promise(done => {
-      (function loop(){
-        an.getFloatFrequencyData(fb); an.getFloatTimeDomainData(tb);
-        let pk=-200, pi=0, m=0, cnt=0;
-        for(let i=3;i<fb.length*.6;i++){ m+=fb[i]; cnt++; if(i>=lo && i<=hiB && fb[i]>pk){ pk=fb[i]; pi=i; } }
-        m/=cnt;
-        let rms=0; for(const v of tb) rms+=v*v; rms=Math.sqrt(rms/tb.length);
-        if(pk > -55 && pk - m > 32){ whistle++; pitches.push(pi*hz); }
-        const now = performance.now();
-        if(rms > Math.max(.18, quietRms*6) && now-lastClap > 180 && !(pk - m > 32)){ claps++; lastClap = now; }
-        quietRms = quietRms*.95 + rms*.05;
-        for(let k=0;k<bars.length;k++) bars[k].style.height = (4 + Math.min(22, rms*120*(0.6+Math.random()*.8)))+"px";
-        if(now - t0 < 5000) requestAnimationFrame(loop); else done();
-      })();
+  // ---------- melodies & echo game (replaces the microphone whistle – no permissions needed) ----------
+  // Five bells in a pentatonic scale, so every combination sounds nice.
+  const NOTES = [523, 587, 659, 784, 880];
+  const SONG_NAMES = ["Månvisan","Nattfjärilsvalsen","Kyrktornsvisan","Grottlåten","Skymningsslingan","Stjärnstoftsvisan"];
+  let songOn = false, songMode = "free", played = [], songTimer = null, busy = false, echo = null, echoInvite = 0;
+  $("keys").innerHTML = NOTES.map((f, i) => '<button data-k="'+i+'" class="k'+i+'" aria-label="Ton '+(i+1)+'"></button>').join("");
+  const keyEl = i => $("keys").children[i];
+  function lightKey(i, ms = 260){ const k = keyEl(i); k.classList.add("lit"); setTimeout(() => k.classList.remove("lit"), ms); }
+  // she sings a sequence of note indexes back; returns a promise when done
+  function batSings(seq, gap = 330){
+    busy = true; $("keys").classList.add("wait");
+    return new Promise(done => {
+      seq.forEach((n, i) => setTimeout(() => {
+        if(n >= 0){ SFX.batNote(NOTES[n]); lightKey(n, gap*.8); } else SFX.chirp(1);
+        if(i % 2 === 0) floaty("♪", 1);
+      }, i*gap));
+      setTimeout(() => { busy = false; $("keys").classList.remove("wait"); done(); }, (seq.length-1)*gap + gap*.8);
     });
-    stream.getTracks().forEach(t=>t.stop()); try{ ac.close(); }catch(e){}
-    SFX.unlock();                     // back to normal playback after the microphone (iPhone lowers/mutes it otherwise)
-    listening = false; $("listening").classList.remove("on");
-    const spread = pitches.length > 5 ? Math.max(...pitches) - Math.min(...pitches) : 0;
-    if(S.asleep && (whistle > 12 || claps >= 2)){ toggleSleep(whistle>12 ? "vissling" : "klapp"); return; }
-    if(whistle > 12){
-      const melody = spread > 400;
-      S.mood = clamp(S.mood + (melody ? 14 : 8));
-      say(melody ? "En melodi! Hon gör en looping av ren glädje." : "Hon hörde dig och kvittrar tillbaka.");
-      nudge("sociability", 1.5); nudge("playfulness", .6); addBond(2);
-      // remember a few notes of it – she may try to sing it back some night
-      if(pitches.length > 5){ const st = Math.floor(pitches.length/6); S.tune = [0,1,2,3,4,5].map(i => Math.round(pitches[Math.min(pitches.length-1, i*st)])); }
-      diary(melody ? pick(["Du visslade en melodi åt mig. Jag har försökt härma den hela natten. Det blir mest pip.","Din melodi fastnade i mina öron. Den går upp och ner, som när jag flyger."])
-                   : pick(["Du visslade igen. Jag försökte svara, men det kom mest ett litet pip. Jag tror att du förstod ändå.","En vissling i mörkret. Jag vet att det var du."]), "whistle");
-      react("happy", 2200); flash("loop", 1300); floaty("♪", 4); purr(); SFX.trill(); SFX.flap();
-      log(S.name+" lyssnade på din "+(melody?"melodi":"vissling")+".");
-    } else if(claps >= 2){
-      S.mood = clamp(S.mood + 3); say("Klapp klapp! Hon fladdrar till av förvåning."); react("happy",1200); flash("dizzy",1500); SFX.flap(); SFX.chirp(2);
-    } else say("Hon hörde inget särskilt. Prova att vissla lite starkare.");
+  }
+  function openSong(mode){
+    if(S.trip || S.away || gameOn) return;
+    lastInteract = Date.now(); SFX.unlock();
+    songOn = true; songMode = "free"; played = []; echo = null;
+    $("song").classList.add("on"); $("stage").classList.add("singing");
+    const invited = Date.now() - echoInvite < 30000; echoInvite = 0; $("bSong").classList.remove("pulse");
+    if(mode === "echo" || invited){ if(invited){ addBond(1); diary("Jag bjöd in dig till ekolek och du kom! Ingen har någonsin svarat på mina pip förut.", "ever:invite"); } startEcho(); return; }
+    updateSongBar();
+    say(S.asleep ? "Hon sover… en melodi kanske väcker henne." : "Knacka fram en melodi – hon lyssnar med sitt ekolod.", 4000);
+  }
+  function closeSong(){
+    songOn = false; clearTimeout(songTimer); echo = null; busy = false;
+    $("song").classList.remove("on"); $("stage").classList.remove("singing"); $("keys").classList.remove("wait");
     save(); render();
-  };
+  }
+  function updateSongBar(){
+    $("songMode").textContent = songMode === "echo" ? "🎶 Fri melodi" : "🦇 Ekolek";
+    $("songInfo").textContent = songMode === "echo" ? (echo ? "Nivå "+echo.len+(S.echoBest ? " · rekord "+S.echoBest : "") : "") : (played.length ? "♪".repeat(played.length) : "");
+  }
+  $("songMode").onclick = () => { if(busy) return; if(songMode === "echo"){ songMode = "free"; echo = null; played = []; updateSongBar(); say("Fri melodi. Knacka fram något fint.", 2500); } else startEcho(); };
+  $("songClose").onclick = closeSong;
+  $("bSong").onclick = () => songOn ? closeSong() : openSong();
+  $("keys").addEventListener("pointerdown", e => {
+    const b = e.target.closest("button[data-k]"); if(!b || busy) return;
+    e.preventDefault(); lastInteract = Date.now();
+    const i = +b.dataset.k; SFX.bell(NOTES[i]); lightKey(i); haptic([8]);
+    if(songMode === "echo") return echoTap(i);
+    played.push(i); updateSongBar(); clearTimeout(songTimer);
+    if(played.length >= 8) finishMelody(); else songTimer = setTimeout(finishMelody, 1700);
+  });
+
+  // a melody you have played before (allowing one wrong note) is recognised
+  function similar(a, b){
+    if(a.length !== b.length || a.length < 4) return a.join() === b.join() && a.length >= 3;
+    let diff = 0; for(let i=0;i<a.length;i++) if(a[i] !== b[i]) diff++; return diff <= 1;
+  }
+  async function finishMelody(){
+    const notes = played.slice(); played = []; updateSongBar();
+    if(notes.length < 3){ say("Lite längre, så hon hinner lyssna. Minst tre toner.", 2500); return; }
+    if(S.asleep){ closeSong(); toggleSleep("melodi"); return; }
+    const known = S.songs.find(s => similar(s.notes, notes));
+    let mine = notes.slice();
+    if(known){
+      known.n++; mine = known.notes.slice();
+      say(known.name ? "«"+known.name+"»! Hon kan den utantill." : "Hon spetsar öronen… den känner hon igen!", 3000);
+    } else {
+      // how well she copies a new tune depends on how social she is; a playful bat adds a flourish
+      const miss = Math.max(.05, .38 - tr("sociability")*.33);
+      mine = notes.map(n => Math.random() < miss ? Math.max(0, Math.min(4, n + (Math.random() < .5 ? -1 : 1))) : n);
+      S.songs.push({notes, n: 1, name: null}); S.songs.sort((a,b) => b.n - a.n); S.songs = S.songs.slice(0, 8);
+      say("Hon lyssnar noga… och försöker sjunga tillbaka.", 2500);
+    }
+    if(!known && S.traits.playfulness > 60) mine.push(-1);
+    await new Promise(r => setTimeout(r, 700));
+    react("happy", mine.length*330 + 800); flash("hop", 950);
+    await batSings(mine);
+    const perfect = known || mine.slice(0, notes.length).join() === notes.join();
+    S.tune = mine.filter(n => n >= 0).map(n => NOTES[n]);
+    S.mood = clamp(S.mood + (known ? 12 : 8)); nudge("sociability", 1.5); nudge("playfulness", .6); addBond(known ? 2.5 : 2);
+    if(known){
+      if(known.n === 3 && !known.name){
+        known.name = SONG_NAMES.find(n => !S.songs.some(s => s.name === n)) || pick(SONG_NAMES);
+        say("Hon har döpt er låt till «"+known.name+"» 💜", 4500); floaty("💜", 4); SFX.trill();
+        diary("Jag har bestämt att vår låt ska heta «"+known.name+"». Den går upp och ner, som när jag flyger. Jag sjunger den när du inte är här.");
+      } else {
+        say(pick(["Er låt! Hon gör en looping av ren glädje.","Den kan hon nu. Hon gungar i takt.","*nynnar med, lite falskt men väldigt glatt*"]), 3000);
+        if(known.n > 3) flash("loop", 1300);
+        diary(known.name ? "Du spelade «"+known.name+"» igen. Det är min favoritlåt i hela världen." : "Du spelade samma melodi som förut! Jag kände igen den direkt. Nästan direkt.", "song-known");
+      }
+    } else {
+      say(perfect ? "Hon kunde den direkt! *stolt pip*" : "Nästan! Hon blandade ihop några toner, men hon ser väldigt nöjd ut.", 3200);
+      diary(pick(["Du spelade en ny melodi för mig. Jag har försökt härma den hela natten. Det blir mest pip.","Din melodi fastnade i mina öron. Jag sjöng den för ugglan. Hon var inte imponerad."]), "song-new");
+    }
+    log(S.name+(known ? " kände igen er melodi"+(known.name ? " «"+known.name+"»" : "") : " lärde sig en ny melodi")+".");
+    purr(); save(); render();
+  }
+
+  // ---------- echo game: she pips a sequence, you repeat it ----------
+  function startEcho(){
+    songMode = "echo"; played = []; echo = {len: 3, seq: [], pos: 0};
+    updateSongBar(); say("Ekolek! Lyssna, och knacka sedan samma toner.", 2600);
+    setTimeout(nextEcho, 1200);
+  }
+  async function nextEcho(){
+    if(!echo || !songOn) return;
+    echo.seq = Array.from({length: echo.len}, () => Math.floor(Math.random()*NOTES.length)); echo.pos = 0;
+    updateSongBar();
+    await batSings(echo.seq, Math.max(260, 420 - echo.len*18));
+    if(echo && songOn) say("Din tur!", 1500);
+  }
+  function echoTap(i){
+    if(!echo || busy) return;
+    if(i !== echo.seq[echo.pos]){ endEcho(); return; }
+    echo.pos++;
+    if(echo.pos < echo.seq.length) return;
+    // whole sequence correct
+    S.mood = clamp(S.mood + 2); floaty("✦", 2); SFX.chirp(2);
+    if(echo.len >= 12){ endEcho(true); return; }
+    echo.len++; busy = true; say(pick(["Rätt! Nu blir det svårare…","Pip! Precis så!","Hon flaxar förtjust. En till!"]), 1500);
+    setTimeout(() => { busy = false; nextEcho(); }, 1100);
+  }
+  function endEcho(won){
+    const reached = echo.len - (won ? 0 : 1), record = reached > (S.echoBest || 0) && reached >= 3;
+    if(record) S.echoBest = reached;
+    echo = null; songMode = "free"; updateSongBar();
+    if(reached < 3){ say("Hon pipar en gång till, lite retsamt. Ett nytt försök?", 3000); SFX.peep(); }
+    else {
+      say((won ? "Du klarade alla! " : "Oj, fel ton! ") + "Du kom ihåg "+reached+" toner"+(record ? " – nytt rekord! 🏆" : "."), 3500);
+      react("happy", 2000); if(record){ flash("loop", 1300); SFX.jingle(); } else SFX.trill();
+    }
+    S.mood = clamp(S.mood + Math.min(15, reached*2)); S.energy = clamp(S.energy - 3);
+    nudge("playfulness", 1.2); nudge("curiosity", .4); addBond(1);
+    if(record) diary("Vi lekte ekolek. Du kom ihåg "+reached+" toner i rad! Det är rekord. Jag ska träna i hemlighet till nästa gång.", "ever:echo-"+reached);
+    log(S.name+" lekte ekolek ("+reached+" toner).");
+    save(); render();
+  }
 
   // ---------- motion: shake & tilt ----------
   let motionOn = false, tilt = 0, tiltY = 0, beta = null, shakes = [];
@@ -1211,7 +1312,7 @@
     const rows = [];
     const add = (ic, t, sub, state, btn) => rows.push('<div class="sensor"><span style="font-size:22px">'+ic+'</span><div><b>'+t+' <span class="'+(state?"ok":"no")+'">'+(state?"✓":"")+'</span></b><small>'+sub+'</small></div>'+(btn||"<span></span>")+'</div>');
     add("📷","Kamera","Visa bilder – hon bedömer skärpa, ljus, färg och komposition. Stjärnor och månen ger bonus.", true);
-    add("🎵","Mikrofon","Vissla en melodi eller klappa. Väcker henne om hon sover.", !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+    add("🎶","Melodier","Knacka fram melodier som hon lär sig och sjunger tillbaka, eller lek ekolek. Ingen mikrofon behövs.", true);
     const motionSupported = "DeviceMotionEvent" in window;
     add("📳","Rörelse","Skaka för att väcka henne. Luta telefonen för att styra henne i jakten.", motionOn,
       motionSupported ? (motionOn ? "" : '<button id="enMotion">Aktivera</button>') : '<small class="no">stöds ej</small>');
@@ -1241,6 +1342,7 @@
   let gameOn = false;
   $("bPlay").onclick = () => {
     if(gameOn) return;
+    if(songOn) closeSong();
     gameOn = true; let caught = 0, t = 15;
     const g = $("game"), st = $("stage"), hunter = $("hunter");
     g.classList.add("on"); $("batWrap").style.opacity = 0;
@@ -1501,7 +1603,7 @@
   let lastInteract = Date.now();
   const sheetOpen = () => !!document.querySelector(".sheet.on");
   function freeToAct(){
-    return !S.asleep && !S.away && !S.trip && !gameOn && !listening && !document.hidden && !sheetOpen()
+    return !S.asleep && !S.away && !S.trip && !gameOn && !songOn && !document.hidden && !sheetOpen()
       && Date.now() - lastInteract > 5000 && Date.now() > reactUntil;
   }
   function spawn(cls, html, style, ms){
@@ -1558,8 +1660,13 @@
         }, 2000);
       } }},
     {id:"tune", w:() => S.tune.length ? .3 + tr("sociability")*.5 : 0, run(){
-      SFX.tune(S.tune); floaty("♪", 3); say("*försöker vissla din melodi*", 2800);
+      SFX.tune(S.tune); floaty("♪", 3); say("*nynnar på er melodi*", 2800);
       diary("Jag kan nästan din melodi nu. Lyssna! … Nästan.", "ever:tune"); save(); }},
+    {id:"echoInvite", w:() => .2 + tr("playfulness")*.5 + tr("sociability")*.2, run(){
+      batSings([0,1,2,3,4].map(() => Math.floor(Math.random()*5)).slice(0, 3), 260);
+      say("*pip-piip-pip* Hon vill leka ekolek! Tryck på 🎶 Sjung.", 6000);
+      echoInvite = Date.now(); $("bSong").classList.add("pulse");
+      setTimeout(() => { if(Date.now() - echoInvite >= 29000) $("bSong").classList.remove("pulse"); }, 30000); }},
     {id:"hang", w:() => .2 + tr("independence")*.6, run(){ flash("wobble", 1400); say("*gör sin egen grej*", 1800); }},
     {id:"think", w:() => .9, run(){ say(pick(thoughts()), 3600); }}
   ];
@@ -1617,11 +1724,11 @@
       + '<div class="stat"><span>Utflykter</span><b>'+S.trips+'</b></div>'
       + '<div class="stat"><span>Fynd</span><b>'+found+' / '+Object.keys(ITEMS).length+'</b></div>'
       + '<div class="stat"><span>Bilder hon fått se</span><b>'+gallery.length+(gallery.length >= 12 ? "+" : "")+'</b></div>'
-      + '<p style="margin-top:12px">Hennes personlighet formas av hur ni umgås: visslingar, jakter, bilder, utflykter och sömn. Det finns inget rätt sätt – bara olika Vesper.</p>';
+      + '<p style="margin-top:12px">Hennes personlighet formas av hur ni umgås: melodier, ekolek, jakter, bilder, utflykter och sömn. Det finns inget rätt sätt – bara olika Vesper.</p>';
   }
 
   // ---------- sheets ----------
-  function openSheet(id){ document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("on")); $(id).classList.add("on"); }
+  function openSheet(id){ if(songOn) closeSong(); document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("on")); $(id).classList.add("on"); }
   function closeSheets(){ document.querySelectorAll(".sheet").forEach(s=>s.classList.remove("on")); }
   document.querySelectorAll(".sheet").forEach(s => s.addEventListener("click", e => { if(e.target === s || e.target.hasAttribute("data-close")) closeSheets(); }));
 
